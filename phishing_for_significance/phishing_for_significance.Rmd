@@ -1,0 +1,1308 @@
+---
+title: "Phishing for Significance"
+author: "Iris Lew, Angelique Iradukunda, Srila Maiti"
+date: "12/01/2022"
+output:
+  pdf_document: default
+  header_includes:
+    - \usepackage{pdflscape}
+    - \newcommand{\blandscape}{\begin{landscape}}
+    - \newcommand{\elandscape}{\end{landscape}}
+    - \newcommand{\bcenter}{\begin{center}}
+    - \newcommand{\ecenter}{\end{center}}
+  word_document: default
+---
+
+```{r packages, include=FALSE}
+purrr::walk(c("lmtest",
+              "sandwich",
+              "reshape2",
+              "stargazer",
+              "diagram",
+              "tidyverse",
+              "ggpubr"),
+            install.packages)
+
+purrr::walk(c("lmtest",
+              "sandwich",
+              "data.table",
+              "magrittr",
+              "reshape2",
+              "ggplot2",
+              "stargazer",
+              "diagram",
+              "tidyverse",
+              "ggpubr"), 
+            require, 
+            character.only = TRUE)
+```
+
+```{r setwd, eval=FALSE, include=FALSE}
+setwd("/home/rstudio/mids-w241/w241_final_project")
+```
+
+```{r reading_Qualtrics, include=FALSE}
+raw <- read.csv("project_010_full.csv") # Qualtrics, pilot and full
+all <- setDT(raw[c(3:nrow(raw)),]) # first two columns are not records
+
+# GIBBERISH
+gibberish <- fread("project_019_gibberish.csv")
+all_gibberish <- merge(
+  x = all,
+  y = gibberish,
+  by = "ResponseId")
+
+# Qualtrics records in CAPS
+colnames(all_gibberish) <- colnames(all_gibberish) %>%
+  gsub(" ", "_", .) %>%
+  gsub("[[:punct:]]", "_", .) %>%
+  toupper()
+```
+
+```{r PILOTvsFULL, include=FALSE}
+pilot <- all_gibberish[FULL=="",]
+full <- all_gibberish[FULL=="1",]
+```
+
+```{r PSdata_pilot, include=FALSE}
+PSdata_pilot <- fread("project_009_PSdataPilot.csv") # PILOT ONLY
+
+# Column formatting, lowercase
+colnames(PSdata_pilot) <- colnames(PSdata_pilot) %>%
+  gsub(" ", "_", .) %>%
+  gsub("[[:punct:]]", "_", .) %>%
+  tolower()
+```
+
+```{r PSdata_full, include=FALSE}
+PSdata_full <- fread("project_011_PSdata.csv") # FULL ONLY
+
+# lowercase
+colnames(PSdata_full) <- colnames(PSdata_full) %>%
+  gsub(" ", "_", .) %>%
+  gsub("[[:punct:]]", "_", .) %>%
+  tolower()
+```
+
+```{r merge_Qualtrics_PSdata_pilot, include=FALSE}
+# For Pilot
+merged_pilot <- merge(
+  x = pilot,
+  y = PSdata_pilot,
+  by.x = "TRANSACTION_ID",
+  by.y = "transaction_id",
+  all = F)
+```
+
+```{r merge_Qualtrics_PSdata_pilot_full, include=FALSE}
+merged_full <- merge(
+  x = full,
+  y = PSdata_full,
+  by.x = "TRANSACTION_ID",
+  by.y = "transaction_id",
+  all = F)
+```
+
+
+```{r keep_rec_flag, include=FALSE}
+merged_pilot[, keep_rec_flag := ifelse(COMP=="COMPLETE",1,0)] # MERGED PILOT
+merged_full[, keep_rec_flag := ifelse(COMP=="COMPLETE",1,0)] # MERGED FULL
+```
+
+```{r coltypes, include=FALSE}
+# as.numeric
+numeric_columns <- c("NUM_CORRECT","PERCENT_CORRECT","DURATION__IN_SECONDS_",
+                     "LOCATIONLATITUDE","LOCATIONLONGITUDE","Q_RECAPTCHASCORE",
+                     "META_VERSION",
+                     colnames(merged_full)[grepl("TIME",colnames(merged_full))],
+                     colnames(merged_full)[grepl("Q112",colnames(merged_full))],
+                     colnames(merged_full)[grepl("Q110",colnames(merged_full))],
+                     colnames(merged_full)[grepl("Q108",colnames(merged_full))],
+                     colnames(merged_full)[grepl("Q106",colnames(merged_full))],
+                     colnames(merged_full)[grepl("Q120",colnames(merged_full))],
+                     colnames(merged_full)[grepl("Q118",colnames(merged_full))],
+                     colnames(merged_full)[grepl("Q116",colnames(merged_full))],
+                     colnames(merged_full)[grepl("Q114",colnames(merged_full))],
+                     "BALL1","TOTAL")
+merged_full[, (numeric_columns) := lapply(.SD, 
+                                       as.numeric), 
+            .SDcols = numeric_columns]
+merged_pilot[, (numeric_columns) := lapply(.SD, 
+                                       as.numeric), 
+            .SDcols = numeric_columns]
+
+# as.factor
+factor_columns <- c("GROUP","TIMING","ENROLLED","GRAD")
+merged_full[, (factor_columns) := lapply(.SD, 
+                                       as.factor), 
+            .SDcols = factor_columns]
+merged_pilot[, (factor_columns) := lapply(.SD, 
+                                       as.factor), 
+            .SDcols = factor_columns]
+
+merged_full[, DEG:=factor(DEG, levels = c("High School", "Associate Degree",
+                                          "Bachelors Degree", "Masters Degree",
+                                          "Professional Degree","PhD",
+                                          "Technical Certifications"))]
+merged_pilot[, DEG:=factor(DEG, levels = c("High School", "Associate Degree",
+                                          "Bachelors Degree", "Masters Degree",
+                                          "Professional Degree","PhD",
+                                          "Technical Certifications"))]
+merged_full[, RES:=factor(RES, levels = c("In-state student",
+                                          "Out-of-state student",
+                                          "International student",
+                                          "Other"))]
+merged_pilot[, RES:=factor(RES, levels = c("In-state student",
+                                          "Out-of-state student",
+                                          "International student",
+                                          "Other"))]
+
+# as.datetime
+date_columns <- c("STARTDATE","ENDDATE","RECORDEDDATE")
+merged_full[, (date_columns) := lapply(.SD, 
+                                       as.POSIXct), 
+            .SDcols = date_columns]
+merged_pilot[, (date_columns) := lapply(.SD, 
+                                       as.POSIXct), 
+            .SDcols = date_columns]
+```
+
+```{r feature_generation_covariates, include=FALSE}
+
+# Mobile
+android <- unique(merged_full$META_OPERATING_SYSTEM[grepl("Android",merged_full$META_OPERATING_SYSTEM)])
+apple <- unique(merged_full$META_OPERATING_SYSTEM[grepl("iP",merged_full$META_OPERATING_SYSTEM)])
+cros <- unique(merged_full$META_OPERATING_SYSTEM[grepl("CrOS",merged_full$META_OPERATING_SYSTEM)])
+windows <- unique(merged_full$META_OPERATING_SYSTEM[grepl("Windows",merged_full$META_OPERATING_SYSTEM)])
+
+merged_full[, mobile:=ifelse(META_OPERATING_SYSTEM %in% c(apple, android),1,
+                             ifelse(META_OPERATING_SYSTEM %in% c(cros,
+                                                                 windows,
+                                                                 "Linux x86_64",
+                                                                 "Macintosh",
+                                                                 "Ubuntu",
+                                                                 "wv"),0,
+                                    NA))]
+merged_pilot[, mobile:=ifelse(META_OPERATING_SYSTEM %in% c(apple, android),1,
+                             ifelse(META_OPERATING_SYSTEM %in% c(cros,
+                                                                 windows,
+                                                                 "Linux x86_64",
+                                                                 "Macintosh",
+                                                                 "Ubuntu",
+                                                                 "wv"),0,
+                                    NA))]
+
+merged_full[keep_rec_flag==1, 
+            GROUP2:=ifelse(GROUP==0 & TIMING==0,1,
+                           ifelse(GROUP==0 & TIMING==1,2,
+                                  ifelse(GROUP==1 & TIMING==0,3,
+                                         ifelse(GROUP==1 & TIMING==1,4, NA))))]
+merged_pilot[keep_rec_flag==1, 
+            GROUP2:=ifelse(GROUP==0 & TIMING==0,1,
+                           ifelse(GROUP==0 & TIMING==1,2,
+                                  ifelse(GROUP==1 & TIMING==0,3,
+                                         ifelse(GROUP==1 & TIMING==1,4, NA))))]
+
+
+merged_full$GROUP2 <- factor(merged_full$GROUP2, labels = 
+                               c("Passive x No Timer", "Passive x Timer", 
+                                "Active x No Timer", "Active x Timer"))
+merged_pilot$GROUP2 <- factor(merged_pilot$GROUP2, labels = 
+                               c("Passive x No Timer", "Passive x Timer", 
+                                "Active x No Timer", "Active x Timer"))
+
+merged_full[keep_rec_flag==1, AGE2:=AGE]
+merged_full$AGE2 <- as.numeric(merged_full$AGE2)
+```
+
+
+# Abstract
+Is active learning more effective than passive learning in terms of educating college students against phishing emails offering employment opportunities? College students are key targets to phishing scams because it is often their first time searching for employment and many expect to find jobs upon graduation. Thus, we seek to improve the quality of cybersecurity training materials to educate students on identifying malicious emails. We test whether the type of learning (passive vs. active education) will successfully enable students to identify whether emails are phishing or legitimate. 
+
+We distributed a survey to a sample marketplace, Pure Spectrum. Survey takers will either have suspicious parts in emails identified for them (passive) or have to click the suspicious parts of an email (active). Afterwards, they will view a series of 10 emails where they have to identify each as legitimate or phishing. We find no difference between the accuracy rates of the two groups. 
+
+# Background
+As reported by many surveys, phishing has been around since 1995; it started off by phishers stealing user’s passwords and using algorithms to generate fraudulent accounts through fake credit card numbers\footnote{https://www.phishing.org/history-of-phishing}. Generally, it has been observed that there is an increase of misleading emails and websites as individuals become more connected to the virtual world; it is not promising that phishing is going to end. 
+
+Digital scams have evolved and students are common targets. While many companies include phishing awareness training as part of their cybersecurity training, students often do not receive such training despite the fact that most students will likely end up looking for job opportunities when they graduate and thus are particularly vulnerable to online recruitment fraud (ORF). There are employment scams, student loans relief scams, fraudulent scholarship opportunities, and many more which are specifically aimed at them\footnote{https://www.fdacs.gov/Consumer-Resources/Scams-and-Fraud/Scams-Targeting-College-Students}. Because of this, colleges and universities are aware that they need to work on security solutions to help improve students’ cybersecurity knowledge, including phishing awareness. Previous research has been done to show that simulated phishing emails to Carnegie Mellon University students, staff and faculty as of the training will be beneficial, but it was done through a program called PhishGuru\footnote{https://www.cs.cmu.edu/~jasonh/publications/acm-tois-teaching-johnny-not-to-fall-for-phish-final.pdf}. Currently, the university we are attending, UC Berkeley, carries a repository of previous phishing emails and a few posters, but does not require any training. Students can read materials on how to "Fight the Phish"\footnote{https://security.berkeley.edu/education-awareness/phishing/fight-phish-marketing-materials}, but usually the only people who read materials are those who are already interested in the first place. Additionally, it is not just students who are interested in cybersecurity who should learn about phishing, as students in general are receiving phishing emails.
+
+AT&T states that there are two parts to phishing awareness training: awareness education and phishing testing\footnote{https://cybersecurity.att.com/blogs/security-essentials/phishing-awareness-training-explained}. We are interested in whether reading materials about cybersecurity would be just as effective, or whether it would be more effective if students had to interact with them. Research has been done to show active learning ("the process of having students engage in some activity that forces them to reflect upon ideas and how they are using those ideas") improves learning compared to passive methods\footnote{https://journals.physiology.org/doi/full/10.1152/advan.00053.2006}. Previous research also shows that while incorporating screenshots of potential phishing emails might not help train people on categorizing phishing emails and legitimate emails even though it increases awareness\footnote{https://link-springer-com.libproxy.berkeley.edu/content/pdf/10.1007/978-3-540-77366-5\_33}, using a game called Anti-Phishing Phil would help people distinguish legitimate websites from phishing websites\footnote{https://www.cs.cmu.edu/~jasonh/publications/acm-tois-teaching-johnny-not-to-fall-for-phish-final.pdf}, suggesting that interactivity with the training materials might help. Thus, in this project, we are studying whether this improvement would extend to teaching students, prime targets, about phishing in the context of cybersecurity.
+
+# Research Question
+
+As students who also have a professional background, we are wary when we are solicited by recruiters and receive job offers because we also receive phishing emails. While there is technology that helps to filter out phishing emails\footnote{https://workspace.google.com/blog/identity-and-security/an-overview-of-gmails-spam-filters}, not all are filtered out and humans are still capable of making errors due to ignorance. If we become too reliant on this technology, we could potentially fall prey to the few phishing scams that go through. 
+
+So we seek to improve on current cybersecurity phishing materials. Is an active learning approach where students have to interact with training materials more effective? Our experiment aims to investigate the causal effect of active or passive learning methods for cybersecurity training to promote phishing awareness among students. If we use a learning technique that challenges students to retain information better, would it help improve students’ ability to identify phishing emails? We operationalize "identifying phishing emails" as the percentage of emails correctly identified out of 10 emails (5 of which are recruiting or job offer emails that we have received, 5 of which are phishing emails).
+
+## Hypothesis
+
+In order to understand the effectiveness of cybersecurity training for identifying emails as phishing or legitimate correctly, we start by establishing our below hypotheses:
+
+* **Null Hypothesis ($H_0)$**: There is no statistically significant difference in rate of accurately identifying emails as legitimate or phishing between students who are receiving active or passive training.
+
+* **Alternate Hypothesis ($H_a$)**: There is a statistically significant difference in the rate of accurately identifying the emails as legitimate or phishing between students who are receiving active or passive training.
+
+Based on the background research, we expect the students going through interactive cybersecurity training will be able to identify phishing emails more than those receiving passive training, but we are being conservative and only testing for whether a difference can be found.
+
+# Experiment Design
+
+## Experiment Overview
+
+To test this hypothesis, we sent a survey and used a between-subjects design. The survey collected various demographic attributes which we think could be used as covariates. Participants will be randomly assigned to either the treatment (active) or control (passive) and will go through their appropriate training procedures.
+
+We combined training type (active or passive) and whether a timer is used on a particular training topic in a 2x2 factorial design. We wanted to discern whether it is the time spent in the active training which would increase the accuracy (because respondents would have to read the training carefully and search for where to click), or whether it is because the interaction itself helps them retain the information better. Participants who did not have a timer could progress at their own pace but those with a timer had to spend at least 20 seconds on the pages. This leads us the design below:
+
+|Passive Training X No Timer | Passive Training X Timer Imposed (20 secs) |
+|---------|---------|
+|Active Training X No Timer | Active Training X Timer Imposed (20 secs) |
+
+Upon completion of the training, the participants will then be presented a series of emails where they have to determine if they are legitimate or phishing emails. Based on their responses, we will evaluate whether our hypothesis holds true or not.
+
+## Comparison of Potential Outcome
+
+To control for both measured and unmeasured potential confounding variables, we randomly assigned students in the treatment (active learning) group or control (passive learning) group. We consider the two different types of treatments for our participants: the first being active treatment and the second being passive treatment; we then compare the outcome of the percentage of emails identified correctly between the two groups. The potential outcome for treatment is the percentage of correctly identified emails with active conditions as opposed to potential outcome for control which is the percentage of emails correctly identified with passive condition.
+
+We hope to find a difference in the potential outcomes for the treatment compared to the potential outcomes for the control. In other words, we hope that the average percentage of emails that are correctly identified would be different between those in the active learning group compared to those in the passive learning group.
+
+## Survey Instrument - Qualtrics
+
+We built the survey instrument in Qualtrics and divided it into four main parts: the demographics including metadata, attention check, the training, and the measurement. 
+
+The demographics would include screener questions in order to ensure we only keep the sample from our target population: current students. We decided to ask questions about the students’ residential status and if they were actively seeking jobs or internships in order to include them as covariates. We chose these covariates because we suspect that certain groups of these students may make them better targets for phishers (e.g., an international student may not be as familiar with job hunting in the US).
+
+The attention check required respondents to read and answer a math question. Two numbers between 0 and 9 were generated. The larger number would be the number of balls that were found on a floor in the question while the smaller number functioned as the number of them that a child would pick up. Survey takers were asked how many balls were left on the floor.
+The training process included a short explanation at the top followed by a screenshot of an email with suspicious elements. If respondents were in the active condition, they would have to click the suspicious elements in the screenshot, which would then be highlighted. If respondents were in the passive condition, they would see a pre-drawn box around the suspicious elements in the screenshot. Furthermore, if respondents were in a timer condition, then they would only be able to proceed after 20 seconds on each page. There were four pages to the training process, and they would be presented in a random order to the participants.
+
+The measurement emails were recreated so that they appeared more standardized, sent to our own email inboxes, and then included in Qualtrics as screenshots. The legitimate emails were sourced from our own email inboxes and LinkedIn solicitations from recruiters and hiring managers. The phishing emails were sourced from the UC Berkeley "Phish Tank" \footnote{https://security.berkeley.edu/resources/phish-tank} and the Georgetown University Information Security Office Phishing Examples\footnote{https://security.georgetown.edu/category/phishing-examples/}. We started with 10 legitimate emails and 10 phishing emails, but after considering respondent fatigue, we decided to limit it to 5 legitimate emails and 5 phishing emails. These 10 emails were also presented in a randomized order. Furthermore, the order of the answer choices of "legitimate" and "phishing" were randomized to control for possible order effects. We used Qualtrics built-in scoring system to identify how many emails are correctly marked and then calculated the percentage correct within Qualtrics for each respondent.
+
+### Randomization
+
+Once a survey taker passes the attention check, they would be randomly assigned to passive or active learning using Qualtrics’s built-in randomization function within its survey flow. Then they would be assigned to a timer condition using the same randomization function, where they can progress at their own pace or they have to spend 20 seconds at each of the training pages before they could proceed. This was the only point when they could be assigned into these conditions, and because the randomization happened without the respondents’ knowledge and respondents could only proceed forwards in the survey, there was no noncompliance. This provided a 2x2 multi-factorial experiment with the following cell sizes that are used for quotas.
+
+|         | Progressed At Own Pace | Mandatory Timer (20 Sec) |
+|---------|------------------------|--------------------------|
+| Passive | Pilot n=13; Full n=65  |  Pilot n=13; Full n=65   |
+| Active  | Pilot n=11; Full n=65  |  Pilot n=13; Full n=66   |
+
+We aimed to have 50 completed surveys in the pilot and 260 in the full, following the power analysis. Quotas allowed 13 for each group in the pilot, and 65 for each group in the full. We ended up with 66 completes in the Active + Timer condition because two people submitted a response at around the same time, thus incrementing the quota together.
+
+While the assignment is initially random, as quotas filled up, we would redirect them to other quotas. For example, if someone were assigned to Passive + No Timer, but Passive + No Timer and Passive + Timer had their quotas filled, they would then be funneled over to Active + No Timer. If the quota were met and they could not be funneled over, then they were redirected out of the survey. We instituted this redirect because we believed survey takers were independent of one another and the next respondent that would appear in our sample set would be required to be the other condition.
+
+## Recruitment Process
+
+We decided to use Pure Spectrum as a supplier platform. There are a total of 50 suppliers who could send survey takers to our survey. Pure Spectrum has pre-built screeners, and we decided to pass in respondents’ answers to the age, gender, and employment status screeners into our data. Pure Spectrum’s screener asked "What is your employment status?" and one of the response options is "Student." We chose not to use their employment status as a criterion to exclude respondents because it is a single-select and we were interested in including all students, including part-time students who are also full-time workers. In our survey tool, we included two screener questions. The first screener asked the age of the respondent. We decided to exclude respondents who report that they are "Under 18" years of age because people have to be over 18 years old in order to be eligible for most jobs in the United States. We have also decided to only include respondents who report that they are an "actively enrolled student." Thus, they would be more likely to have a student email that they regularly check, and are the ones most likely to fall prey to student recruitment scams. Respondents who fail to answer pass these screeners will be redirected out of the survey and would not increase our quota counts.
+
+We also included an attention check after the demographics. If respondents answered incorrectly, they would be redirected out of the survey and would not increase our quota counts. The survey had built in randomization as soon as respondents passed the attention check which would increment their respective quotas. The quota would only be incremented if the respondents complete the survey.
+
+We fielded a pilot (n=50) and our full sample (n=261). Individuals who have participated in the pilot, regardless if they were screened out, redirected out due to reaching quota, failed the attention check, or did not complete the survey, would be ineligible to be a part of the full sample. Individuals who completed the survey were compensated with \$0.60-\$0.70 in the pilot and with \$0.70-\$1.50 in the full sample.
+
+## Project Timeline
+
+|Survey Design Finished | Pilot Fielding | Pilot Data Analysis Starts | Full Fielding | Full Analysis Starts
+|------|------|------|------|------|
+| Nov 18, 2022 | Nov 19-20, 2022  |  Nov 20, 2022   | Nov 21-24, 2022 | Nov 24, 2022
+
+We decided to field a pilot sample of 50 respondents so that we can do a power analysis for the full fielding and account for any unforeseen difficulties in actual fielding.
+
+## Pilot Study
+
+In the pilot study, we discovered that the plan to redirect respondents to the other condition once quotas were filling up was not implemented. It was discovered towards the end of the study, and updated the survey instrument to include the logic. Otherwise, our questions and measurement calculations were working as intended.
+
+We also used the pilot study to test how we should price the cost per interview and how fast we would get responses. There were more complete responses during non-working hours and when people would typically be awake in the United States; however, it took two days to gather 50 completes, and thus we discovered we needed to provide higher prices and increase it more frequently to attract more sample members.
+
+### Power Analysis
+
+```{r pilot_p_value, include=FALSE}
+mod_pilot <- merged_pilot[keep_rec_flag == 1,
+                         lm(PERCENT_CORRECT ~ GROUP * TIMING)]
+coef_pilot <- coeftest(mod_pilot, vcov. = vcovHC)
+p_value_pilot <- coef_pilot[2,4]
+```
+
+We could not find any background research on passive vs. active learning in the context of phishing emails so our power analysis is based on our own pilot study of n=50. We did not find any statistical significance with an n=50 (p-value of `r round(p_value_pilot,2)`). During our power analysis, we discovered that we would not reach 80% power even if we paid everyone \$1. Our financial analysis indicated that we would likely need to pay some respondents more than \$1 in order to meet fielding deadlines but with a budget limit of \$500, so we decided to field a full sample of 260 respondents using a conservative estimate of our budget.
+
+```{r power_analysis, echo=FALSE}
+## for active
+active_notime_min <- merged_pilot[keep_rec_flag == 1 &
+                                  GROUP == 1 &
+                                  TIMING == 0, 
+                                  min(NUM_CORRECT)
+                                 ]
+active_notime_max <- merged_pilot[keep_rec_flag == 1 &
+                                  GROUP == 1 &
+                                  TIMING == 0, 
+                                  max(NUM_CORRECT)
+                                 ]
+active_time_min <- merged_pilot[keep_rec_flag == 1 &
+                                GROUP == 1 &
+                                TIMING == 1, 
+                                min(NUM_CORRECT)
+                               ]
+active_time_max <- merged_pilot[keep_rec_flag == 1 &
+                                GROUP == 1 &
+                                TIMING == 1, 
+                                max(NUM_CORRECT)
+                               ]
+
+## for passive
+
+passive_notime_min <- merged_pilot[keep_rec_flag == 1 &
+                                   GROUP == 0 &
+                                   TIMING == 0, 
+                                   min(NUM_CORRECT)
+                                  ]
+passive_notime_max <- merged_pilot[keep_rec_flag == 1 &
+                                   GROUP == 0 &
+                                   TIMING == 0, 
+                                   max(NUM_CORRECT)
+                                  ]
+passive_time_min <- merged_pilot[keep_rec_flag == 1 &
+                                 GROUP == 0 &
+                                 TIMING == 1, 
+                                 min(NUM_CORRECT)
+                                ]
+passive_time_max <- merged_pilot[keep_rec_flag == 1 &
+                                 GROUP == 0 &
+                                 TIMING == 1, 
+                                 max(NUM_CORRECT)
+                                ]
+
+power_calc <- function(n){
+    data <- data.table(id = 1:n)
+    data <- data[, GROUP:= sample(0:1, size=.N, replace=T)]
+  
+    treatment <- data[GROUP == 1,]
+    control <- data[GROUP == 0,]
+  
+    treatment[sample(1:nrow(treatment),
+                     size = round(nrow(treatment) / 2), 0),
+             TIMING := 1
+            ]
+    treatment[is.na(TIMING),
+              TIMING := 0]
+    control[sample(1:nrow(control),
+                   size = round(nrow(control) / 2),0),
+            TIMING:=1]
+    control[is.na(TIMING),
+            TIMING:=0]
+    data <- rbind(treatment,control)
+  
+    ### ACTIVE & NO TIMING
+    data <- data[GROUP == 1 & TIMING == 0, 
+               PERCENT_CORRECT := sample(
+                 c(active_notime_min:active_notime_max),
+                 size = .N,
+                 replace = T)/10]
+    ### ACTIVE & TIMING
+    data <- data[GROUP == 1 & TIMING==1, 
+                 PERCENT_CORRECT := sample(
+                 c(active_time_min:active_time_max),
+                 size = .N,
+                 replace = T)/10]
+    ### PASSIVE & NO TIMING
+    data <- data[GROUP == 0 & TIMING==0, 
+                 PERCENT_CORRECT := sample(
+                 c(passive_notime_min:passive_notime_max),
+                 size = .N,
+                 replace = T)/10]
+    ### PASSIVE & TIMING
+    data <- data[GROUP == 0 & TIMING==1, 
+                 PERCENT_CORRECT := sample(
+                 c(passive_time_min:passive_time_max),
+                 size = .N,
+                 replace = T)/10]
+  
+  
+    model <- data[, lm(PERCENT_CORRECT~as.factor(GROUP)*as.factor(TIMING))]
+    model$vcovHC_ <- vcovHC(model)
+    model_p_value <- coeftest(model,
+                              vcov. = model$vcovHC_)[2,4]
+    return(model_p_value)
+}
+
+n_sizes <- c(100, 150, 200, 250, 300, 350, 400, 450, 500)
+power_values_vector <- c()
+set.seed(0)
+for (sample_size in n_sizes){
+    scenario_p_values <- replicate(n = 1000,
+                                   expr = power_calc(sample_size)
+                                  )
+    calculated_power <- mean(scenario_p_values < 0.05)
+    power_values_vector <- c(power_values_vector,
+                             calculated_power)
+}
+
+# plotting
+plotdf <- data.frame(n_sizes,
+                     power_values_vector)
+melted <- reshape2::melt(plotdf,id=c("n_sizes"))
+
+ggplot(data = melted,
+       aes(x = n_sizes,
+           y = value,
+           group = variable,
+           colour = variable)) +
+    geom_line() +
+    geom_point() +
+    theme_minimal() +
+    labs(title = "Power Analysis",
+         x = "Sample Sizes",
+         y = "Power",
+         color = "Scenario") +
+    theme(legend.position = "right") +
+    scale_color_manual(labels = c("Pilot data"),
+                       values = c("blue"))
+```
+
+## Observation and Outcome Measures
+
+Each observation in our data set is corresponding to one survey taker’s response and each survey taker can take the survey only once. Pure Spectrum’s platform contains a report which also includes additional attributes which are not part of our survey design, however we have incorporated the data in the final dataset. Respondents did not have to answer every question that is included in Pure Spectrum’s screeners, so there is missing information there; however, they had to answer all of the questions in our Qualtrics questionnaire.
+
+Each observation consists of metadata information (browser, OS version, IP address, start and end time, finished or not, duration, latitude, longitude, language etc), demographic information (age, gender, ethnicity, relationship, occupation, highest education, kids, geographic location attributes, currently enrolled students or not, international/in-state/out-of-state student etc), subject assignment information (active/passive X timer/no timer condition), how much time the subject is spending on the training topic/question, what the survey taker classified the emails in the measurement section as, and measurement calculations. There were 10 emails in the measurement section, and the number the respondents answered with the correct response was converted into a percentage.
+
+We had incomplete observations. If they were marked as incomplete before they were assigned to a learning group and a timer condition, we could not count them as part of our sample. If they were assigned a learning group and a timer condition, we would consider them as attrited.
+
+## Data Completeness
+```{r CONSORT, echo=FALSE, fig.height=10, fig.width=13}
+# CONSORT DIAGRAM
+par(mfrow=c(1,1))
+par(mar=c(0,0,0,0))
+##initialize new graphics device
+openplotmat()
+labels = vector(length=25)
+elpos<-coordinates(c(1, # AGE
+                     1, # GENDER
+                     1, # ENROLLED
+                     1, # DEGREE
+                     1, # RESIDENTIAL STATUS
+                     1, # GRADUATION
+                     1, # ATTENTION
+                     2, # TREATMENT/CONTROL
+                     4, # TIME/NO TIME x2
+                     4, # TRAINING
+                     4, # EMAIL MEASUREMENTS
+                     4)) # FINAL SAMPLE
+
+### START OF SURVEY
+### Number of people who entered
+cell_name_1 <- "Age"
+entered_1 <- nrow(merged_full)
+exited_1 <- nrow(merged_full[AGE=="Under 18",])
+labels[1] = paste0(cell_name_1, "\n", 
+                   "Num Answered: ", entered_1, "\n", 
+                   "Num Screened Out: ", exited_1)
+
+cell_name_2 <- "Gender"
+entered_2 <- nrow(merged_full[GENDER!="", ])
+labels[2] = paste0(cell_name_2, "\n", 
+                   "Num Answered: ", entered_2)
+
+cell_name_3 <- "Actively Enrolled Student"
+entered_3 <- nrow(merged_full[ENROLLED!="", ])
+exited_3 <- nrow(merged_full[ENROLLED=="No",])
+labels[3] = paste0(cell_name_3, "\n", 
+                   "Num Answered: ", entered_3, "\n", 
+                   "Num Screened Out: ", exited_3)
+
+cell_name_4 <- "Degree"
+entered_4 <- nrow(merged_full[DEG!="", ])
+labels[4] = paste0(cell_name_4, "\n", 
+                   "Num Answered: ", entered_4)
+
+cell_name_5 <- "Residential Status"
+entered_5 <- nrow(merged_full[RES!="", ])
+labels[5] = paste0(cell_name_5, "\n", 
+                   "Num Answered: ", entered_5)
+
+
+cell_name_6 <- "Searching for Job/Internship"
+entered_6 <- nrow(merged_full[GRAD!="", ])
+labels[6] = paste0(cell_name_6, "\n", 
+                   "Num Answered: ", entered_6)
+
+cell_name_7 <- "Attention Check"
+entered_7 <- nrow(merged_full[BALL1!="", ])
+exited_7 <- nrow(merged_full[COMP=="ATTENTION",])
+labels[7] = paste0(cell_name_7, "\n", 
+                   "Num Answered: ", entered_7, "\n",
+                   "Num Screened Out: ", exited_7)
+
+
+### ASSIGNING TREATMENT GROUPS
+cell_name_8 <- "Passive"
+entered_8 <- nrow(merged_full[GROUP==0, ])
+labels[8] = paste0(cell_name_8, "\n", 
+                   "Num Assigned: ", entered_8)
+
+cell_name_9 <- "Active"
+entered_9 <- nrow(merged_full[GROUP==1, ])
+labels[9] = paste0(cell_name_9, "\n", 
+                   "Num Assigned: ", entered_9)
+
+cell_name_10 <- "No Timing"
+entered_10 <- nrow(merged_full[GROUP==0 & TIMING==0, ])
+exited_10 <- nrow(merged_full[GROUP==0 & TIMING==0 &
+                      is.na(TIME10_PAGE_SUBMIT), ])
+labels[10] = paste0(cell_name_10, "\n",
+                   "Num Assigned: ", entered_10, "\n",
+                   "Num Attrited: ", exited_10)
+
+cell_name_11 <- "Timing"
+entered_11 <- nrow(merged_full[GROUP==0 & TIMING==1, ])
+exited_11 <- nrow(merged_full[GROUP==0 & TIMING==1 &
+                      is.na(TIME10_PAGE_SUBMIT), ])
+labels[11] = paste0(cell_name_11, "\n",
+                    "Num Assigned: ", entered_11, "\n",
+                    "Num Attrited: ", exited_11)
+
+cell_name_12 <- "No Timing" 
+entered_12 <- nrow(merged_full[GROUP==1 & TIMING==0, ])
+exited_12 <- nrow(merged_full[GROUP==1 & TIMING==0 &
+                      is.na(TIME5_PAGE_SUBMIT), ])
+labels[12] = paste0(cell_name_12, "\n",
+                    "Num Assigned: ", entered_12, "\n",
+                    "Num Attrited: ", exited_12)
+
+cell_name_13 <- "Timing"
+entered_13 <- nrow(merged_full[GROUP==1 & TIMING==1, ])
+exited_13 <- nrow(merged_full[GROUP==1 & TIMING==1 &
+                      is.na(TIME5_PAGE_SUBMIT), ])
+labels[13] = paste0(cell_name_13, "\n",
+                    "Num Assigned: ", entered_13, "\n",
+                    "Num Attrited: ", exited_13)
+
+##### training
+cell_name_14 <- "Training"
+entered_14 <- nrow(merged_full[GROUP==0 & TIMING==0 &
+                       !is.na(TIME10_PAGE_SUBMIT), ])
+exited_14 <- nrow(merged_full[GROUP==0 & TIMING==0 &
+                      !is.na(TIME10_PAGE_SUBMIT) &
+                      (is.na(TIME11_PAGE_SUBMIT) |
+                         is.na(TIME12_PAGE_SUBMIT) |
+                         is.na(TIME13_PAGE_SUBMIT) |
+                         is.na(TIME14_PAGE_SUBMIT)),])
+labels[14] = paste0(cell_name_14, "\n",
+                    "Num Entered: ", entered_14, "\n",
+                    "Num Attrited: ", exited_14)
+
+cell_name_15 <- "Training"
+entered_15 <- nrow(merged_full[GROUP==0 & TIMING==1 &
+                       !is.na(TIME10_PAGE_SUBMIT), ])
+exited_15 <- nrow(merged_full[GROUP==0 & TIMING==1 &
+                      !is.na(TIME10_PAGE_SUBMIT) &
+                      (is.na(Q112_PAGE_SUBMIT) |
+                         is.na(Q110_PAGE_SUBMIT) |
+                         is.na(Q108_PAGE_SUBMIT) |
+                         is.na(Q106_PAGE_SUBMIT)),])
+labels[15] = paste0(cell_name_15, "\n",
+                    "Num Entered: ", entered_15, "\n",
+                    "Num Attrited: ", exited_15)
+
+cell_name_16 <- "Training"
+entered_16 <- nrow(merged_full[GROUP==1 & TIMING==0 &
+                       !is.na(TIME5_PAGE_SUBMIT), ])
+exited_16 <- nrow(merged_full[GROUP==1 & TIMING==0 &
+                      (is.na(TIME6_PAGE_SUBMIT) |
+                         is.na(TIME7_PAGE_SUBMIT) |
+                         is.na(TIME8_PAGE_SUBMIT) |
+                         is.na(TIME9_PAGE_SUBMIT))  &
+                      !is.na(TIME5_PAGE_SUBMIT),])
+labels[16] = paste0(cell_name_16, "\n",
+                    "Num Entered: ", entered_16, "\n",
+                    "Num Attrited: ", exited_16)
+
+cell_name_17 <- "Training"
+entered_17 <- nrow(merged_full[GROUP==1 & TIMING==1 &
+                       !is.na(TIME5_PAGE_SUBMIT), ])
+exited_17 <- nrow(merged_full[GROUP==1 & TIMING==1 &
+                      !is.na(TIME5_PAGE_SUBMIT) &
+                      (is.na(Q120_PAGE_SUBMIT) |
+                         is.na(Q118_PAGE_SUBMIT) |
+                         is.na(Q116_PAGE_SUBMIT) |
+                         is.na(Q114_PAGE_SUBMIT)),])
+labels[17] = paste0(cell_name_17, "\n",
+                    "Num Entered: ", entered_17, "\n",
+                    "Num Attrited: ", exited_17)
+
+##### measurements
+cell_name_18 <- "Emails"
+entered_18 <- nrow(merged_full[GROUP==0 & TIMING==0 &
+                       !is.na(TIME15_PAGE_SUBMIT), ])
+exited_18 <- nrow(merged_full[GROUP==0 & TIMING==0 &
+                      !is.na(TIME15_PAGE_SUBMIT) &
+                      is.na(TIME36_PAGE_SUBMIT),])
+labels[18] = paste0(cell_name_18, "\n",
+                    "Num Entered: ", entered_18, "\n",
+                    "Num Attrited: ", exited_18)
+
+cell_name_19 <- "Emails"
+entered_19 <- nrow(merged_full[GROUP==0 & TIMING==1 &
+                       !is.na(TIME15_PAGE_SUBMIT), ])
+exited_19 <- nrow(merged_full[GROUP==0 & TIMING==1 &
+                      !is.na(TIME15_PAGE_SUBMIT) &
+                      is.na(TIME36_PAGE_SUBMIT),])
+labels[19] = paste0(cell_name_19, "\n",
+                    "Num Entered: ", entered_19, "\n",
+                    "Num Attrited: ", exited_19)
+
+cell_name_20 <- "Emails"
+entered_20 <- nrow(merged_full[GROUP==1 & TIMING==0 &
+                       !is.na(TIME15_PAGE_SUBMIT), ])
+exited_20 <- nrow(merged_full[GROUP==1 & TIMING==0 &
+                      !is.na(TIME15_PAGE_SUBMIT) &
+                      is.na(TIME36_PAGE_SUBMIT),])
+labels[20] = paste0(cell_name_20, "\n",
+                    "Num Entered: ", entered_20, "\n",
+                    "Num Attrited: ", exited_20)
+
+cell_name_21 <- "Emails"
+entered_21 <- nrow(merged_full[GROUP==1 & TIMING==1 &
+                       !is.na(TIME15_PAGE_SUBMIT), ])
+exited_21 <- nrow(merged_full[GROUP==1 & TIMING==1 &
+                      !is.na(TIME15_PAGE_SUBMIT) &
+                      is.na(TIME36_PAGE_SUBMIT),])
+labels[21] = paste0(cell_name_21, "\n",
+                    "Num Entered: ", entered_21, "\n",
+                    "Num Attrited: ", exited_21)
+
+
+## FINAL SAMPLE
+entered_22 <- nrow(merged_full[GROUP==0 & TIMING==0 &
+                       COMP=="COMPLETE", ])
+labels[22] = paste0("Final Sample: ", entered_22)
+
+entered_23 <- nrow(merged_full[GROUP==0 & TIMING==1 &
+                       COMP=="COMPLETE", ])
+labels[23] = paste0("Final Sample: ", entered_23)
+
+entered_24 <- nrow(merged_full[GROUP==1 & TIMING==0 &
+                       COMP=="COMPLETE", ])
+labels[24] = paste0("Final Sample: ", entered_24)
+
+entered_25 <- nrow(merged_full[GROUP==1 & TIMING==1 &
+                       COMP=="COMPLETE", ])
+labels[25] = paste0("Final Sample: ", entered_25)
+
+treearrow(from=elpos[1,],to=elpos[2,],lwd=3) 
+treearrow(from=elpos[2,],to=elpos[3,],lwd=3) 
+treearrow(from=elpos[3,],to=elpos[4,],lwd=3) 
+treearrow(from=elpos[4,],to=elpos[5,],lwd=3) 
+treearrow(from=elpos[5,],to=elpos[6,],lwd=3) 
+treearrow(from=elpos[6,],to=elpos[7,],lwd=3) 
+treearrow(from=elpos[7,],to=elpos[8:9,],lwd=3) 
+treearrow(from=elpos[8,],to=elpos[10:11,],lwd=3) 
+treearrow(from=elpos[9,],to=elpos[12:13,],lwd=3) 
+treearrow(from=elpos[10,],to=elpos[14,],lwd=3)
+treearrow(from=elpos[11,],to=elpos[15,],lwd=3)
+treearrow(from=elpos[12,],to=elpos[16,],lwd=3)
+treearrow(from=elpos[13,],to=elpos[17,],lwd=3)
+treearrow(from=elpos[14,],to=elpos[18,],lwd=3)
+treearrow(from=elpos[15,],to=elpos[19,],lwd=3)
+treearrow(from=elpos[16,],to=elpos[20,],lwd=3)
+treearrow(from=elpos[17,],to=elpos[21,],lwd=3)
+treearrow(from=elpos[18,],to=elpos[22,],lwd=3)
+treearrow(from=elpos[19,],to=elpos[23,],lwd=3) 
+treearrow(from=elpos[20,],to=elpos[24,],lwd=3)
+treearrow(from=elpos[21,],to=elpos[25,],lwd=3) 
+
+for (i in 1:25) textround(elpos[i,],
+                          radx=0.07,
+                          rady=0.03,
+                          shadow.size = 0,
+                          lab=labels[i])
+```
+
+Of the `r entered_1` people who entered the survey, only `r entered_8 + entered_9` passed the screeners and were eligible to be a part of the experiment. As mentioned above, because we assigned respondents to their training and timer conditions at one point and they could only move forward in the survey, there was no noncompliance.
+
+We noticed that there were `r exited_10+exited_11+exited_12+exited_13` respondents who chose to attrit as soon as they were assigned into a condition, and never received the training at all. Furthermore, there was differential attrition with only 1 person that was assigned into the active and timer condition leaving the survey compared to a combined `r exited_10+exited_11+exited_12` from the other conditions. The remaining `r exited_14+exited_15+exited_16+exited_17+exited_18+exited_19+exited_20+exited_21` attrited during the training or when they were classifying emails. As there was more than 5% attrition, we did not apply an extreme value bounds analysis. See the diagram above for more details on how many made it through the survey and how many left at which time.
+
+# Results
+For our analysis, we only used the complete data. First of all, we also took a look at whether emails were identified correctly across the groups to see if there is a trend in phishing emails looking “phishy” and legitimate emails appearing as legitimate. 
+
+```{r phishiness_emails, echo=FALSE}
+p1 <- merged_full[keep_rec_flag==1, .(count = .N, Email="Phishing #1"), by = EMAIL3]
+p2 <- merged_full[keep_rec_flag==1, .(count = .N, Email="Phishing #2"), by = EMAIL4]
+p3 <- merged_full[keep_rec_flag==1, .(count = .N, Email="Phishing #3"), by = EMAIL5]
+p4 <- merged_full[keep_rec_flag==1, .(count = .N, Email="Phishing #4"), by = EMAIL8]
+p5 <- merged_full[keep_rec_flag==1, .(count = .N, Email="Phishing #5"), by = EMAIL10]
+l1 <- merged_full[keep_rec_flag==1, .(count = .N, Email="Legitimate #1"), by = EMAIL11]
+l2 <- merged_full[keep_rec_flag==1, .(count = .N, Email="Legitimate #2"), by = EMAIL13]
+l3 <- merged_full[keep_rec_flag==1, .(count = .N, Email="Legitimate #3"), by = EMAIL15]
+l4 <- merged_full[keep_rec_flag==1, .(count = .N, Email="Legitimate #4"), by = EMAIL17]
+l5 <- merged_full[keep_rec_flag==1, .(count = .N, Email="Legitimate #5"), by = EMAIL19]
+test <- rbind(p1,p2,p3,p4,p5,
+              l1,l2,l3,l4,l5, use.names=FALSE)
+test$Type <- factor(test$EMAIL3, levels = c("Phishing", "Legitimate"))
+
+email_phishing <- test[Type=="Phishing",]
+email_legitimate <- test[Type=="Legitimate",]
+
+email_height <- merge(
+  x = email_phishing,
+  y = email_legitimate,
+  by = c("Email"),
+  all = F)
+email_height[,height.x:=(count.x/2)+count.y]
+email_height[,height.y:=count.y/2]
+email_height_p <- email_height %>%
+  select(Email, count.x, Type.x, height.x)
+colnames(email_height_p) <- gsub(".x","",colnames(email_height_p))
+email_height_l <- email_height %>%
+  select(Email, count.y, Type.y, height.y)
+colnames(email_height_l) <- gsub(".y","",colnames(email_height_p))
+email_height_2 <- rbind(email_height_p, 
+                        email_height_l, use.names=FALSE)
+
+test_2 <- merge(
+  x = test,
+  y = email_height_2,
+  by = c("Email","Type", "count")
+)
+
+test_3 <- test_2 %>%
+  select(Email, count, Type, height)
+
+ggplot(test_3, aes(fill=Type, y=count, x=Email)) +
+  geom_bar(position='stack', stat='identity') +
+  labs(title="Emails look like ...", x="Emails", y="Number of Respondents Guessed") +
+  theme(axis.text.x = element_text(angle = 90))+
+  geom_hline(yintercept=130)  +
+  geom_text(aes(x=Email, 
+                y=height,
+                label = prettyNum(count,big.mark = ",")), 
+            vjust = 0,  size = 2)
+```
+
+```{r phishy_difference, include=FALSE}
+email_values <- merged_full %>%
+  pivot_longer(cols = colnames(merged_full)[grepl("EMAIL[0-9]", colnames(merged_full))],
+               names_to = "EMAIL",
+               values_to = "VALUE") %>%
+  select(EMAIL, VALUE)
+
+chisq.test(email_values$EMAIL, email_values$VALUE)$parameter
+
+```
+Overall, the 10 emails performed similarly to each other and the emails tended to look "phishy" in general, but using a chi-square test, we did not find any significant difference (p-value of `r round(chisq.test(email_values$EMAIL, email_values$VALUE)$p.value,2)`, df=`r chisq.test(email_values$EMAIL, email_values$VALUE)$parameter`) between the emails and how "phishy" they looked. Thus, the emails are comparable to each other.
+
+We ran three linear regression models:
+
+* The effects of the type of training on the percentage correct, with whether a timer was assigned as a covariate.
+* The effects of the type of training, interacted with whether a timer was assigned, on the percentage correct. This is so that we can explore possible heterogeneous effects.
+* Any possible causal effects from the type of training, whether a timer was assigned, and other features we collected as covariates.
+
+\newpage
+```{r model_full, echo=FALSE, message=FALSE, warning=FALSE, results='asis'}
+# Model dealing with % count vs group and timing
+mod1 <- merged_full[keep_rec_flag == 1,          
+                    lm(PERCENT_CORRECT ~ GROUP + TIMING)
+                   ]
+# Model dealing with % count vs group and timing interaction
+mod2 <- merged_full[keep_rec_flag == 1,
+                    lm(PERCENT_CORRECT ~ GROUP * TIMING)
+                   ]
+coef_full <- coeftest(mod2, vcov.=vcovHC)
+p_value_full <- coef_full[2,4]
+
+# Model dealing with % count vs group and timing, 
+# covariates
+mod3 <- merged_full[keep_rec_flag == 1, 
+                    lm(PERCENT_CORRECT ~ GROUP +
+                                         TIMING +
+                                         GROUP * TIMING +
+                                         DEG +
+                                         GRAD +
+                                         AGE2 +
+                                         GENDER +
+                                         RES +
+                                         mobile)
+                   ]
+coef_mod3 <- coeftest(mod3, vcov.=vcovHC)
+mod1se <- sqrt(diag(vcovHC(mod1)))
+mod2se <- sqrt(diag(vcovHC(mod2)))
+mod3se <- sqrt(diag(vcovHC(mod3)))
+
+stargazer(mod1, 
+          mod2, 
+          mod3,
+          type = 'latex',
+          header=FALSE,
+          se = list(mod1se, mod2se, mod3se),
+          dep.var.caption  = "Percent of Emails Classified Correctly",
+          dep.var.labels   = "",
+          omit.stat=c("adj.rsq","f"), digits=2,
+          add.lines = list(
+            c("Graduating", "", "","\\checkmark"),
+            c("Age", "", "","\\checkmark"),
+            c("Gender", "", "", "\\checkmark"),
+            c("Residential Status", "", "","\\checkmark"),
+            c("Device", "", "","\\checkmark"),
+            c("additional features", "", "", "\\checkmark")),
+          omit = c("GRADYes","AGE2","GENDERMale","GENDEROther", "RESOut-of-state student","RESInternational student",
+                   "RESOther","mobile"),
+          title = "Linear Regression Models",
+          column.labels = c("Treatment Design",
+                            "Treatment Design with Interaction", 
+                            "Exploratory Model"),
+          covariate.labels = c("Active","Timer",
+                               "Degree: Associate",
+                               "Degree: Bachelor's",
+                               "Degree: Master's",
+                               "Degree: Professional",
+                               "Degree: PhD",
+                               "Degree: Technical Certifications",
+                               "Active/Timer Interaction")
+         )
+```
+\newpage
+
+In our regressions, we see that the results for the active and passive learning conditions are not significant. The average percent correct for those in the passive condition is `r round(merged_full[GROUP==0 & keep_rec_flag==1,mean(PERCENT_CORRECT)],2)` and `r round(merged_full[GROUP==1 & keep_rec_flag==1,mean(PERCENT_CORRECT)],2)` for those in the active condition. We ran the linear regression and did not find any significance. This did not improve by much even when we included the interaction. With robust standard errors and without covariates, we find a p-value of `r round(p_value_full,2)` with an average treatment effect of `r merged_full[keep_rec_flag==1,mean(PERCENT_CORRECT), keyby="GROUP"][,diff(V1)]` and a standard error of `r round(coef_full[2,2],2)`. In the practical sense, this means that reading about what to look for in a phishing email and interacting with the email as part of training would provide similar amounts of information. This is reflected in the histograms of the data, where we see a similar shape no matter the condition. There is a slight left skew in the data, but we do not see a ceiling effect where everyone is correctly identifying all the emails. 
+
+```{r histogram_GROUP, echo=FALSE}
+merged_full$GROUP_F <- factor(merged_full$GROUP,
+                              labels = c(NA,"Passive", "Active"))
+
+
+merged_full[keep_rec_flag==1,] %>%
+  ggplot(aes(x = PERCENT_CORRECT, fill = GROUP_F, colour = GROUP_F)) +
+  geom_histogram(alpha = 0.5, position = "identity", bins=10) +
+  guides(fill = guide_legend(title = "Treatment Condition"),
+         colour = guide_legend(title = "Treatment Condition")) + 
+  scale_x_continuous(breaks = seq(0, 1, .1)) + 
+  theme_bw() +
+  labs(title="Percent Correct by Treatment Condition", 
+       x="Percent Correct", 
+       y="Number of Respondents")
+```
+
+As we have included a timer condition, we can further parse out the data into four conditions. We see that in all four conditions, the histogram of each group’s accuracy takes on a similar shape, especially when we layer them on top of each other. We separated the four histograms out in order to better depict the counts.
+
+```{r histogram_full, echo=FALSE}
+merged_full[keep_rec_flag==1,] %>%
+  ggplot(aes(x = PERCENT_CORRECT, fill = GROUP2, colour = GROUP2)) +
+  geom_histogram(alpha = 0.5, position = "identity", bins=10) +
+  guides(fill = guide_legend(title = "Condition"),
+         colour = guide_legend(title = "Condition")) + 
+  scale_x_continuous(breaks = seq(0, 1, .1)) + 
+  theme_bw() +
+  labs(title="Percent Correct by Condition", x="Percent Correct", y="Number of Respondents")
+```
+
+
+```{r hist_condition, echo=FALSE}
+c1 <- merged_full[keep_rec_flag==1 &
+              GROUP2=="Passive x No Timer",] %>%
+  ggplot(aes(x = PERCENT_CORRECT, fill = GROUP2, colour = GROUP2)) +
+  geom_histogram(bins=10, color="black") +
+  scale_x_continuous(breaks = seq(0, 1, .1)) + 
+  theme_bw() +
+  labs(title="Passive x No Timer", x="Percent Correct", y="Number of Respondents") + 
+  theme(legend.position = "none") +
+  scale_y_continuous(limits=c(0,25))
+
+c2 <- merged_full[keep_rec_flag==1 &
+              GROUP2=="Passive x Timer",] %>%
+  ggplot(aes(x = PERCENT_CORRECT, fill = GROUP2, colour = GROUP2)) +
+  geom_histogram(bins=10, fill="green", color="black") +
+  scale_x_continuous(breaks = seq(0, 1, .1)) + 
+  theme_bw() +
+  labs(title="Passive x Timer", x="Percent Correct", y="Number of Respondents") + 
+  theme(legend.position = "none") +
+  scale_y_continuous(limits=c(0,25))
+
+c3 <- merged_full[keep_rec_flag==1 &
+              GROUP2=="Active x No Timer",] %>%
+  ggplot(aes(x = PERCENT_CORRECT, fill = GROUP2, colour = GROUP2)) +
+  geom_histogram(bins=10, fill="blue", color="black") +
+  scale_x_continuous(breaks = seq(0, 1, .1)) + 
+  theme_bw() +
+  labs(title="Active x No Timer", x="Percent Correct", y="Number of Respondents") + 
+  theme(legend.position = "none") +
+  scale_y_continuous(limits=c(0,25))
+
+c4 <- merged_full[keep_rec_flag==1 &
+              GROUP2=="Active x Timer",] %>%
+  ggplot(aes(x = PERCENT_CORRECT, fill = GROUP2, colour = GROUP2)) +
+  geom_histogram(bins=10, fill="purple", color="black") +
+  scale_x_continuous(breaks = seq(0, 1, .1)) + 
+  theme_bw() +
+  labs(title="Active x Timer", x="Percent Correct", y="Number of Respondents") + 
+  theme(legend.position = "none") +
+  scale_y_continuous(limits=c(0,25))
+
+c_correct <- ggarrange(c1, c2, c3, c4,
+                    ncol = 2, nrow = 2)
+c_correct
+
+```
+
+We used a multi-factorial design because those that are in the active condition would be forced to spend more time reading the page before they could progress through the training. We see that respondents in the passive learning condition without a timer spend far less time on each training page than those in the active learning condition. Yet when we include whether they were in the no timer or timer condition, we do not see any statistical significance. This indicates that spending more time reading or interacting with phishing training does not improve accuracy on identifying emails as legitimate or phishing.
+
+```{r timing_recode, include=FALSE}
+# TIMING FOR TRAINING 1
+merged_full[keep_rec_flag==1, 
+            TRAINING_1_CLICK_COUNT:=ifelse(
+              GROUP==0 & TIMING==0, TIME11_CLICK_COUNT,
+              ifelse(GROUP==0 & TIMING==1, Q112_CLICK_COUNT,
+                     ifelse(GROUP==1 & TIMING==0, TIME6_CLICK_COUNT,
+                            ifelse(GROUP==1 & TIMING==1, Q120_CLICK_COUNT,NA))))]
+
+merged_full[keep_rec_flag==1, 
+            TRAINING_1_FIRST_CLICK:=ifelse(
+              GROUP==0 & TIMING==0, TIME11_FIRST_CLICK,
+              ifelse(GROUP==0 & TIMING==1, Q112_FIRST_CLICK,
+                     ifelse(GROUP==1 & TIMING==0, TIME6_FIRST_CLICK,
+                            ifelse(GROUP==1 & TIMING==1, Q120_FIRST_CLICK,NA))))]
+
+merged_full[keep_rec_flag==1, 
+            TRAINING_1_LAST_CLICK:=ifelse(
+              GROUP==0 & TIMING==0, TIME11_LAST_CLICK,
+              ifelse(GROUP==0 & TIMING==1, Q112_LAST_CLICK,
+                     ifelse(GROUP==1 & TIMING==0, TIME6_LAST_CLICK,
+                            ifelse(GROUP==1 & TIMING==1, Q120_LAST_CLICK,NA))))]
+
+merged_full[keep_rec_flag==1, 
+            TRAINING_1_PAGE_SUBMIT:=ifelse(
+              GROUP==0 & TIMING==0, TIME11_PAGE_SUBMIT,
+              ifelse(GROUP==0 & TIMING==1, Q112_PAGE_SUBMIT,
+                     ifelse(GROUP==1 & TIMING==0, TIME6_PAGE_SUBMIT,
+                            ifelse(GROUP==1 & TIMING==1, Q120_PAGE_SUBMIT,NA))))]
+
+# TIMING FOR TRAINING 2
+merged_full[keep_rec_flag==1, 
+            TRAINING_2_CLICK_COUNT:=ifelse(
+              GROUP==0 & TIMING==0, TIME12_CLICK_COUNT,
+              ifelse(GROUP==0 & TIMING==1, Q110_CLICK_COUNT,
+                     ifelse(GROUP==1 & TIMING==0, TIME7_CLICK_COUNT,
+                            ifelse(GROUP==1 & TIMING==1, Q118_CLICK_COUNT,NA))))]
+
+merged_full[keep_rec_flag==1, 
+            TRAINING_2_FIRST_CLICK:=ifelse(
+              GROUP==0 & TIMING==0, TIME12_FIRST_CLICK,
+              ifelse(GROUP==0 & TIMING==1, Q110_FIRST_CLICK,
+                     ifelse(GROUP==1 & TIMING==0, TIME7_FIRST_CLICK,
+                            ifelse(GROUP==1 & TIMING==1, Q118_FIRST_CLICK,NA))))]
+
+merged_full[keep_rec_flag==1, 
+            TRAINING_2_LAST_CLICK:=ifelse(
+              GROUP==0 & TIMING==0, TIME12_LAST_CLICK,
+              ifelse(GROUP==0 & TIMING==1, Q110_LAST_CLICK,
+                     ifelse(GROUP==1 & TIMING==0, TIME7_LAST_CLICK,
+                            ifelse(GROUP==1 & TIMING==1, Q118_LAST_CLICK,NA))))]
+
+merged_full[keep_rec_flag==1, 
+            TRAINING_2_PAGE_SUBMIT:=ifelse(
+              GROUP==0 & TIMING==0, TIME12_PAGE_SUBMIT,
+              ifelse(GROUP==0 & TIMING==1, Q110_PAGE_SUBMIT,
+                     ifelse(GROUP==1 & TIMING==0, TIME7_PAGE_SUBMIT,
+                            ifelse(GROUP==1 & TIMING==1, Q118_PAGE_SUBMIT,NA))))]
+
+# TIMING FOR TRAINING 3
+merged_full[keep_rec_flag==1, 
+            TRAINING_3_CLICK_COUNT:=ifelse(
+              GROUP==0 & TIMING==0, TIME13_CLICK_COUNT,
+              ifelse(GROUP==0 & TIMING==1, Q108_CLICK_COUNT,
+                     ifelse(GROUP==1 & TIMING==0, TIME8_CLICK_COUNT,
+                            ifelse(GROUP==1 & TIMING==1, Q116_CLICK_COUNT,NA))))]
+
+merged_full[keep_rec_flag==1, 
+            TRAINING_3_FIRST_CLICK:=ifelse(
+              GROUP==0 & TIMING==0, TIME13_FIRST_CLICK,
+              ifelse(GROUP==0 & TIMING==1, Q108_FIRST_CLICK,
+                     ifelse(GROUP==1 & TIMING==0, TIME8_FIRST_CLICK,
+                            ifelse(GROUP==1 & TIMING==1, Q116_FIRST_CLICK,NA))))]
+
+merged_full[keep_rec_flag==1, 
+            TRAINING_3_LAST_CLICK:=ifelse(
+              GROUP==0 & TIMING==0, TIME13_LAST_CLICK,
+              ifelse(GROUP==0 & TIMING==1, Q108_LAST_CLICK,
+                     ifelse(GROUP==1 & TIMING==0, TIME8_LAST_CLICK,
+                            ifelse(GROUP==1 & TIMING==1, Q116_LAST_CLICK,NA))))]
+
+merged_full[keep_rec_flag==1, 
+            TRAINING_3_PAGE_SUBMIT:=ifelse(
+              GROUP==0 & TIMING==0, TIME13_PAGE_SUBMIT,
+              ifelse(GROUP==0 & TIMING==1, Q108_PAGE_SUBMIT,
+                     ifelse(GROUP==1 & TIMING==0, TIME8_PAGE_SUBMIT,
+                            ifelse(GROUP==1 & TIMING==1, Q116_PAGE_SUBMIT,NA))))]
+
+# TIMING FOR TRAINING 4
+merged_full[keep_rec_flag==1, 
+            TRAINING_4_CLICK_COUNT:=ifelse(
+              GROUP==0 & TIMING==0, TIME14_CLICK_COUNT,
+              ifelse(GROUP==0 & TIMING==1, Q106_CLICK_COUNT,
+                     ifelse(GROUP==1 & TIMING==0, TIME9_CLICK_COUNT,
+                            ifelse(GROUP==1 & TIMING==1, Q114_CLICK_COUNT,NA))))]
+
+merged_full[keep_rec_flag==1, 
+            TRAINING_4_FIRST_CLICK:=ifelse(
+              GROUP==0 & TIMING==0, TIME14_FIRST_CLICK,
+              ifelse(GROUP==0 & TIMING==1, Q106_FIRST_CLICK,
+                     ifelse(GROUP==1 & TIMING==0, TIME9_FIRST_CLICK,
+                            ifelse(GROUP==1 & TIMING==1, Q114_FIRST_CLICK,NA))))]
+
+merged_full[keep_rec_flag==1, 
+            TRAINING_4_LAST_CLICK:=ifelse(
+              GROUP==0 & TIMING==0, TIME14_LAST_CLICK,
+              ifelse(GROUP==0 & TIMING==1, Q106_LAST_CLICK,
+                     ifelse(GROUP==1 & TIMING==0, TIME9_LAST_CLICK,
+                            ifelse(GROUP==1 & TIMING==1, Q114_LAST_CLICK,NA))))]
+
+merged_full[keep_rec_flag==1, 
+            TRAINING_4_PAGE_SUBMIT:=ifelse(
+              GROUP==0 & TIMING==0, TIME14_PAGE_SUBMIT,
+              ifelse(GROUP==0 & TIMING==1, Q106_PAGE_SUBMIT,
+                     ifelse(GROUP==1 & TIMING==0, TIME9_PAGE_SUBMIT,
+                            ifelse(GROUP==1 & TIMING==1, Q114_PAGE_SUBMIT,NA))))]
+```
+
+```{r time_spent_test, include=FALSE}
+mod_timing_1 <- merged_full[keep_rec_flag==1, lm(TRAINING_1_PAGE_SUBMIT~GROUP*TIMING)]
+mod_timing_1_p <- coeftest(mod_timing_1, vcov. = vcovHC)
+mod_timing_1_p[4,4]
+
+mod_timing_2 <- merged_full[keep_rec_flag==1, lm(TRAINING_2_PAGE_SUBMIT~GROUP*TIMING)]
+mod_timing_2_p <- coeftest(mod_timing_2, vcov. = vcovHC)
+mod_timing_2_p[4,4]
+
+mod_timing_3 <- merged_full[keep_rec_flag==1, lm(TRAINING_3_PAGE_SUBMIT~GROUP*TIMING)]
+mod_timing_3_p <- coeftest(mod_timing_3, vcov. = vcovHC)
+mod_timing_3_p[4,4]
+
+mod_timing_4 <- merged_full[keep_rec_flag==1, lm(TRAINING_4_PAGE_SUBMIT~GROUP*TIMING)]
+mod_timing_4_p <- coeftest(mod_timing_4, vcov. = vcovHC)
+mod_timing_4_p[4,4]
+```
+
+
+We evaluated whether people spent the same amount of time in the passive vs. active training pages. If they were spending the same amount of time regardless, these results could still be confounded with time spent even though we imposed a timer. We find that they are spending significantly less time in the passive and no timing condition in both the Fake Fee Training (p-value of `r round(mod_timing_1_p[4,4],2)`) and the Google Doc Training (p-value of `r round(mod_timing_3_p[4,4],2)`); this means that they are still retaining and understanding the information even though they are only reading the information. Even though they were generally spending less time than the other conditions in the Account Upgrade Training and the Career Services Training, they weren’t significant.
+
+```{r timing_comparisons, eval=FALSE, include=FALSE}
+# Do people spend more time in the active than training?
+merged_full[keep_rec_flag==1,
+            mean(TRAINING_1_PAGE_SUBMIT),
+            keyby=c("GROUP")]
+
+merged_full[keep_rec_flag==1,
+            mean(TRAINING_1_PAGE_SUBMIT),
+            keyby=c("GROUP", "TIMING")]
+
+merged_full[keep_rec_flag==1,
+            mean(TRAINING_2_PAGE_SUBMIT),
+            keyby=c("GROUP")]
+
+merged_full[keep_rec_flag==1,
+            mean(TRAINING_2_PAGE_SUBMIT),
+            keyby=c("GROUP", "TIMING")]
+
+merged_full[keep_rec_flag==1,
+            mean(TRAINING_3_PAGE_SUBMIT),
+            keyby=c("GROUP")]
+
+merged_full[keep_rec_flag==1,
+            mean(TRAINING_3_PAGE_SUBMIT),
+            keyby=c("GROUP", "TIMING")]
+
+merged_full[keep_rec_flag==1,
+            mean(TRAINING_4_PAGE_SUBMIT),
+            keyby=c("GROUP")]
+
+merged_full[keep_rec_flag==1,
+            mean(TRAINING_4_PAGE_SUBMIT),
+            keyby=c("GROUP", "TIMING")]
+```
+
+
+```{r boxplots, fig.width=10, fig.height=14, echo=FALSE}
+t1 <- merged_full[keep_rec_flag==1,] %>%
+  ggplot(aes(x=GROUP2, y=TRAINING_1_PAGE_SUBMIT, fill=GROUP2)) +
+  geom_boxplot() +
+  stat_summary(fun="mean", geom="point", shape=8,
+               size=2, color="white") +
+  labs(title="Time Spent on Fake Fee Posting Training", x="Condition", y="Time (seconds)")+ 
+  theme(legend.position = "none", axis.text.x = element_text(angle = 90)) 
+
+t2 <- merged_full[keep_rec_flag==1,] %>%
+  ggplot(aes(x=GROUP2, y=TRAINING_2_PAGE_SUBMIT, fill=GROUP2)) +
+  geom_boxplot() +
+  stat_summary(fun="mean", geom="point", shape=8,
+               size=2, color="white") +
+  labs(title="Time Spent on Account Upgrade Training", x="Condition", y="Time (seconds)") + 
+  theme(legend.position = "none") +
+  theme(legend.position = "none", axis.text.x = element_text(angle = 90)) 
+
+t3 <- merged_full[keep_rec_flag==1,] %>%
+  ggplot(aes(x=GROUP2, y=TRAINING_3_PAGE_SUBMIT, fill=GROUP2)) +
+  geom_boxplot() +
+  stat_summary(fun="mean", geom="point", shape=8,
+               size=2, color="white") +
+  labs(title="Time Spent on Google Doc Training", x="Condition", y="Time (seconds)") + 
+  theme(legend.position = "none", axis.text.x = element_text(angle = 90)) 
+
+t4 <- merged_full[keep_rec_flag==1,] %>%
+  ggplot(aes(x=GROUP2, y=TRAINING_4_PAGE_SUBMIT, fill=GROUP2)) +
+  geom_boxplot() +
+  stat_summary(fun="mean", geom="point", shape=8,
+               size=2, color="white") +
+  labs(title="Time Spent on Career Services Training", x="Condition", y="Time Spent on Page (seconds)") + 
+  theme(legend.position = "none", axis.text.x = element_text(angle = 90)) 
+
+t_times <- ggarrange(t1, t2, t3, t4,
+                    ncol = 2, nrow = 2)
+t_times
+```
+
+When we evaluate whether there are covariates which are absorbing some of the effects, we see that there is significance in the degree that the subjects are working towards. However, we see that working towards a high school diploma score significantly worse in identifying the emails correctly when compared to those working towards an associate degree (p-value<0.01), a bachelor's degree (p-value<0.01), master’s degree (p-value=`r round(coef_mod3[6,4],2)`), and technical certifications (p-value=`r round(coef_mod3[9,4],2)`). 
+
+```{r education_histograms, fig.height=10, fig.width=10, echo=FALSE}
+hs <- merged_full[keep_rec_flag==1 &
+              DEG=="High School",] %>%
+  ggplot(aes(x = PERCENT_CORRECT, fill = GROUP, colour = GROUP)) +
+  geom_histogram(bins=10, fill="gray", color="black") +
+  scale_x_continuous(breaks = seq(0, 1, .1)) + 
+  theme_bw() +
+  labs(title="Percent Correct by\nHigh School (n=32)", x="Percent Correct", y="Number of Respondents") + 
+  theme(legend.position = "none") +
+  scale_y_continuous(limits=c(0,25))
+
+ad <- merged_full[keep_rec_flag==1 &
+              DEG=="Associate Degree",] %>%
+  ggplot(aes(x = PERCENT_CORRECT, fill = GROUP, colour = GROUP)) +
+  geom_histogram(bins=10, fill="#FFFF99", color="black") +
+  scale_x_continuous(breaks = seq(0, 1, .1)) + 
+  theme_bw() +
+  labs(title="Percent Correct by\nAssociate Degree (n=56)", x="Percent Correct", y="Number of Respondents") + 
+  theme(legend.position = "none") +
+  scale_y_continuous(limits=c(0,25))
+
+bd <- merged_full[keep_rec_flag==1 &
+              DEG=="Bachelors Degree",] %>%
+  ggplot(aes(x = PERCENT_CORRECT, fill = GROUP, colour = GROUP)) +
+  geom_histogram(bins=10, fill="#FFCC99", color="black") +
+  scale_x_continuous(breaks = seq(0, 1, .1)) + 
+  theme_bw() +
+  labs(title="Percent Correct by\nBachelor's Degree (n=80)", x="Percent Correct", y="Number of Respondents") + 
+  theme(legend.position = "none") +
+  scale_y_continuous(limits=c(0,25))
+
+md <- merged_full[keep_rec_flag==1 &
+              DEG=="Masters Degree",] %>%
+  ggplot(aes(x = PERCENT_CORRECT, fill = GROUP, colour = GROUP)) +
+  geom_histogram(bins=10, fill="#CC0000", color="black") +
+  scale_x_continuous(breaks = seq(0, 1, .1)) + 
+  theme_bw() +
+  labs(title="Percent Correct by\nMaster's Degree (n=52)", x="Percent Correct", y="Number of Respondents") + 
+  theme(legend.position = "none") +
+  scale_y_continuous(limits=c(0,25))
+
+pd <- merged_full[keep_rec_flag==1 &
+              DEG=="Professional Degree",] %>%
+  ggplot(aes(x = PERCENT_CORRECT, fill = GROUP, colour = GROUP)) +
+  geom_histogram(bins=10, fill="#CC6600", color="black") +
+  scale_x_continuous(breaks = seq(0, 1, .1)) + 
+  theme_bw() +
+  labs(title="Percent Correct by\nProfessional Degree (n=18)", x="Percent Correct", y="Number of Respondents") + 
+  theme(legend.position = "none") +
+  scale_y_continuous(limits=c(0,25))
+
+tc <- merged_full[keep_rec_flag==1 &
+              DEG=="Technical Certifications",] %>%
+  ggplot(aes(x = PERCENT_CORRECT, fill = GROUP, colour = GROUP)) +
+  geom_histogram(bins=10, fill="#999900", color="black") +
+  scale_x_continuous(breaks = seq(0, 1, .1)) + 
+  theme_bw() +
+  labs(title="Percent Correct by\nTechnical Certifications (n=10)", x="Percent Correct", y="Number of Respondents") + 
+  theme(legend.position = "none") +
+  scale_y_continuous(limits=c(0,25))
+
+school <- ggarrange(hs, ad,
+                    bd, md,
+                    pd, tc,
+                    ncol = 2, nrow = 3)
+school
+
+```
+```{r strange, include=FALSE}
+merged_full[, FLATLINE:=ifelse(keep_rec_flag==1 & 
+                       ((EMAIL3=="Phishing" &
+                       EMAIL4=="Phishing" &
+                       EMAIL5=="Phishing" &
+                       EMAIL8=="Phishing" &
+                       EMAIL10=="Phishing" &
+                       EMAIL11=="Phishing" &
+                       EMAIL13=="Phishing" &
+                       EMAIL15=="Phishing" & 
+                       EMAIL17=="Phishing" &
+                       EMAIL19=="Phishing") | 
+                      (EMAIL3=="Legitimate" &
+                       EMAIL4=="Legitimate" &
+                       EMAIL5=="Legitimate" &
+                       EMAIL8=="Legitimate" &
+                       EMAIL10=="Legitimate" &
+                       EMAIL11=="Legitimate" &
+                       EMAIL13=="Legitimate" &
+                       EMAIL15=="Legitimate" & 
+                       EMAIL17=="Legitimate" &
+                       EMAIL19=="Legitimate")),1,NA)]
+merged_full[, STRANGE:=ifelse(keep_rec_flag==1 & 
+                                (GIBBERISH %in% 1 | FLATLINE==1),
+                              1,
+                              0)]
+num_strange <- merged_full[keep_rec_flag==1 & 
+                             STRANGE %in% 1,] %>%
+  nrow()
+
+passive_strange <- merged_full[keep_rec_flag==1 & GROUP==0 &
+                                 STRANGE==1, ] %>%
+  nrow()
+
+active_strange <- merged_full[keep_rec_flag==1 & GROUP==1 &
+                                 STRANGE==1, ] %>%
+  nrow()
+```
+
+
+We see `r num_strange` strange responses. These primarily come from participants who gave "gibberish" responses to our final question "Please let us know any comments you have." and those who classified all the emails as "legitimate" or "phishing." Due to small cell sizes, we were unable to perform a chi-square test with good estimates (`r passive_strange` responses in the passive learning condition and `r active_strange` responses in the active learning condition).
+
+# Conclusions
+
+Due to the lack of significant findings, we cannot say that having an interactive training about phishing in cybersecurity would be beneficial. Instead, our results suggest that the overall level of education may have an impact on identifying emails, but this cannot be ascertained without further research. It is still important to educate people about phishing and cybersecurity in general, and it may be that we should just provide higher education to more people.
+
+> "I think that this was very helpful and made me aware of scammers." - A survey respondent's comment about our survey 
+
+# Limitations and Future Enhancements
+
+There were several limitations in our study. We noticed that there are response discrepancies, a very limited training on phishing, and we may not have captured the impulsivity when readers initially see a tantalizing email, especially as they were not expecting it. We also do not know why there is differential attrition, but we suspect it may be due to going over quota. We did not find any records that went over quota, which is strange because there were some records that came in after the last completed record we received. 
+
+We see that there is a discrepancy between the age and gender responses from Pure Spectrum's report compared to the ones we asked in Qualtrics. This is common in survey responses, and it would be better if we could have an independent data source verify the true age, but we do not have access to such data.
+
+```{r flatlining, include=FALSE}
+all_p <- merged_full[keep_rec_flag==1 & 
+                       EMAIL3=="Phishing" &
+                       EMAIL4=="Phishing" &
+                       EMAIL5=="Phishing" &
+                       EMAIL8=="Phishing" &
+                       EMAIL10=="Phishing" &
+                       EMAIL11=="Phishing" &
+                       EMAIL13=="Phishing" &
+                       EMAIL15=="Phishing" & 
+                       EMAIL17=="Phishing" &
+                       EMAIL19=="Phishing", ] %>% nrow()
+
+all_l <- merged_full[keep_rec_flag==1 & 
+                       EMAIL3!="Phishing" &
+                       EMAIL4!="Phishing" &
+                       EMAIL5!="Phishing" &
+                       EMAIL8!="Phishing" &
+                       EMAIL10!="Phishing" &
+                       EMAIL11!="Phishing" &
+                       EMAIL13!="Phishing" &
+                       EMAIL15!="Phishing" & 
+                       EMAIL17!="Phishing" &
+                       EMAIL19!="Phishing", ] %>% nrow()
+```
+
+
+Our phishing training was very limited. We only told the survey takers what to watch out for in phishing emails, and not what an actual recruiter solicitation or job offer looks like in the treatment. Thus, the survey takers could have been primed to think that all the emails we presented were phishing emails; however, this was not reflected in the data and very few marked all the emails as legitimate (`r all_l` responses) or all as phishing (`r all_p` responses); we were unable to perform a chi-square test with numbers this low. Additionally, there are unique and shortened links in recruiter solicitation and interview emails that are unique (e.g., calendly invitations). If the advice is to not click on links, then it is not useful. Perhaps results would have been different if we were to include more varied training on what recruiter solicitation emails look like, especially if they are not from well-known companies.
+
+We may not have impulsivity when respondents see an email with a tantalizing offer. We tried to capture it by asking whether respondents are job hunting and including it as a covariate, but respondents know this is a research study and we provided training that hopefully made them stop and analyze emails carefully. A field study where a university IT department sends out a fake phishing email in multiple waves may better capture whether students fall for employment phishing scams or not. If they were told that it was a phishing attempt when they fall for it on one wave and they should be wary in the future, it would be interesting to see if they fall for it on a subsequent wave.
