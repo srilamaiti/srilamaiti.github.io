@@ -1,0 +1,517 @@
+---
+title: "Voting Difficulty for Repulican vs Democratic Voters"
+author: "Ed Brown, Srila Maiti, Lisa Wu"
+date: "6/28/2022"
+output:
+  pdf_document:
+    toc: true
+    number_sections: true
+    toc_depth: 3
+---
+
+```{=tex}
+\newpage
+\setcounter{page}{1}
+```
+```{r load packages and set options, include=FALSE}
+library(tidyverse)
+library(haven)
+library(ggplot2)
+library(knitr)
+library(patchwork)
+library(scales)
+theme_set(theme_bw)
+knitr::opts_chunk$set(echo = FALSE, message = FALSE)
+```
+
+```{r load data}
+raw_election_df <- read_sav("datasets/anes_timeseries_2020_spss_20220210.sav")
+num_samples_raw_df = nrow(raw_election_df) #Referenced in Markdown
+```
+
+```{r clean data, echo = FALSE}
+######################################################################################################################
+#
+# Party Affiliation Variables
+#
+# V201228 V201228 PRE: PARTY ID: DOES R THINK OF SELF AS DEMOCRAT, REPUBLICAN, OR INDEPENDENT
+# V201229 PRE: PARTY IDENTIFICATION STRONG - DEMOCRAT REPUBLICAN
+# V201230 PRE: NO PARTY IDENTIFICATION - CLOSER TO DEMOCRATIC PARTY OR REPUBLICAN PARTY
+# V201231x PRE: SUMMARY: PARTY ID
+# V201200 PRE: 7PT SCALE LIBERAL-CONSERVATIVE SELFPLACEMENT
+# V201201 PRE: IF R HAD TO CHOOSE LIBERAL OR CONSERVATIVE SELF-PLACEMT
+#
+# Logic for Summary variable V201231x
+#
+# Party ID - V201231x
+# do if RPTYID = 1 and STRPTYID = 1.
+# compute pid = 1.
+# else if RPTYID = 1 and STRPTYID = 2.
+# compute pid = 2.
+# else if RPTYID = 0 and LEANPTY = 3.
+# compute pid = 3.
+# else if RPTYID = 0 and LEANPTY = 2.
+# compute pid = 4.
+# else if RPTYID = 0 and LEANPTY = 1.
+# compute pid = 5.
+# else if RPTYID = 5 and LEANPTY = 3.
+# compute pid = 3.
+# else if RPTYID = 5 and LEANPTY = 2.
+# 773
+# compute pid = 4.
+# else if RPTYID = 5 and LEANPTY = 1.
+# compute pid = 5.
+# else if RPTYID = 3 and LEANPTY = 3.
+# compute pid = 3.
+# else if RPTYID = 3 and LEANPTY = 2.
+# compute pid = 4.
+# else if RPTYID = 3 and LEANPTY = 1.
+# compute pid = 5.
+# else if RPTYID = 2 and STRPTYID = 2.
+# compute pid = 6.
+# else if RPTYID = 2 and STRPTYID = 1.
+# compute pid = 7.
+# else if RPTYID = -9 and LEANPTY = 1.
+# compute pid = 5.
+# else if RPTYID = -9 and LEANPTY = 2.
+# compute pid = 4.
+# else if RPTYID = -9. and LEANPTY = 3.
+# compute pid = 3.
+# else if RPTYID = -8 and LEANPTY = 1.
+# compute pid = 5.
+# else if RPTYID = -8 and LEANPTY = 2.
+# compute pid = 4.
+# else if RPTYID = -8. and LEANPTY = 3.
+# compute pid = 3.
+# else if LEANPTY = -9.
+# compute pid = -9.
+# else if LEANPTY = -8.
+# compute pid = -8.
+# else if STRPTYID = -9.
+# compute pid = -9.
+# end if.
+# execute.
+# rename variables (pid = V201231x).
+# execute.
+# add value labels pid
+# 1 "1. Strong Democrat"
+# 2 "2. Not very strong Democrat"
+# 3 "3. Independent-Democrat"
+# 4 "4. Independent"
+# 5 "5. Independent-Republican"
+# 6 "6. Not very strong Republican"
+# 7 "7. Strong Republican"
+# -9 "-9. Refused"
+# -8 "-8. Don't know".
+# execute.
+
+################################################################################
+#
+# Registration Variables; Turns out we're not using these in this analysis. Keep for records
+#
+# V202114a Reason Not Registered: Didn't meet deadlines
+# V202114b Reason Not Registered: DID NOT KNOW WHERE OR HOW TO REGISTER
+# V202114c POST: REASON R IS NOT REGISTERED - DID NOT MEET RESIDENCY REQUIREMENTS
+# V202114d POST: REASON R IS NOT REGISTERED - REGISTRATION FORM WAS NOT PROCESSED CORRECTLY
+# V202114e POST: REASON R IS NOT REGISTERED - DID NOT HAVE REQUIRED IDENTIFICATION
+# V202114f POST: REASON R IS NOT REGISTERED - NOTINTERESTED IN THE ELECTION, Doesn't imply difficulty
+# V202114g POST: REASON R IS NOT REGISTERED - MY VOTE WOULD NOT MAKE A DIFFERENCE, Doesn't imply difficulty
+# V202114h POST: REASON R IS NOT REGISTERED - PERMANENT ILLNESS OR DISABILITY
+# V202114i POST: REASON R IS NOT REGISTERED - DIFFICULTY WITH ENGLISH
+# V202114j POST: REASON R IS NOT REGISTERED - NOT ELIGIBLE TO VOTE, Doesn't imply difficulty
+# V202114k POST: REASON R IS NOT REGISTERED - OTHER
+
+
+################################################################################
+#
+# Voter Status Summary Variables
+#
+# V201022 PRE: ALREADY VOTED IN GENERAL ELECTION -9 = Refused; 1 = Voted; 2 = Have not Voted PREVOTE_VOTED
+# V201023 PRE: CONFIRMATION VOTED (EARLY) IN NOVEMBER 3 ELECTION -9 == Refused; -1 == Inapplicable; 1 = Voted; 2 = Have not Voted PREVOTE_VCONF
+# V202068x POST: SUMMARY: POST VOTE STATUS FOR REGISTERED RESPONDENTS 0 == Not Reg Not Voted;  1 == Registered and Not Voted;  2 == Voted;  -2 == Missing  -6 == No post election interview  -7 == No data deleted was incomplete
+#
+# V202068x = case_when(
+# # voted regardless of registration status
+# HOWVOTE %in% c(1,2,3,-9) | RVOTE_PO == 4 ~ 2,
+# # Registered but did not vote
+# ( reg_pre == 1 | REGIST_PO %in% 1:2 ) & ( RVOTE_PO %in% 1:3 ) ~ 1,
+# # Did not register and did not vote
+# ( REGIST_PO == 3 ) & (RVOTE_PO %in% 1:3 ) ~ 0,
+# #Not reported
+# TRUE ~ -2)
+# )
+#
+#
+################################################################################
+#
+# Voting Difficulty Variables
+#
+# This Grouping only applies if R already voted in PRE or VOTED in POST
+# control with V202068x == 2 and ( PRE VOTE V201023 == 1 and V201022 == 1 )
+#
+# V202119 POST: HOW DIFFICULT WAS IT FOR R TO VOTE
+# V202120a POST: DID R ENCOUNTER ANY PROBLEMS VOTING - REGISTRATION PROBLEM
+# V202120b POST: DID R ENCOUNTER ANY PROBLEMS VOTING - CONCERN ABOUT IDENTIFICATION CARD
+# V202120c POST: DID R ENCOUNTER ANY PROBLEMS VOTING - DIFFICULTY OBTAINING ABSENTEE BALLOT
+# V202120d POST: DID R ENCOUNTER ANY PROBLEMS VOTING - CONFUSION ABOUT BALLOT OR MACHINE
+# V202120e POST: DID R ENCOUNTER ANY PROBLEMS VOTING - DIFFICULTY GETTING TO POLLING PLACE
+# V202120f POST: DID R ENCOUNTER ANY PROBLEMS VOTING - LONG WAIT TIMES
+# V202120g POST: DID R ENCOUNTER ANY PROBLEMS VOTING - WORK SCHEDULE
+# V202120h POST: DID R ENCOUNTER ANY PROBLEMS VOTING - BAD WEATHER
+# V202120i POST: DID R ENCOUNTER ANY PROBLEMS VOTING - ISSUE MAILING BALLOT
+# V202120j POST: DID R ENCOUNTER ANY PROBLEMS VOTING - OTHER PROBLEM
+# V202120k POST: DID R ENCOUNTER ANY PROBLEMS VOTING - NONE AT ALL
+#
+#
+# V202121 POST: HOW LONG WAS WAIT TIME AT POLLING PLACE
+# V202122 POST: HOW LONG DOES IT TAKE TO GET TO POLLING PLACE
+#
+# V202066 POST: DID R VOTE IN NOVEMBER 2020 ELECTION
+# V202123 POST: MAIN REASON R DID NOT VOTE
+# V202124 POST: ANY OTHER REASON R DID NOT VOTE
+
+################################################################################
+#
+# Sample Control Variables
+#
+# V200002 MODE OF INTERVIEW: PRE-ELECTION INTERVIEW; We only want 3 which is Web
+# V200004 COMPLETED PRE ONLY, POST ONLY, OR COMPLETED PRE AND POST INTERVIEWS; We only want 3 pre-and post complete
+# V200005 CASE VALIDATION: ELIGIBILITY CONCERNS; We only want 0 no special concern
+# V200006 CASE VALIDATION: ELIGIBILITY OUTCOME; We only want 1 Respondent definitely was select person
+# V200007 CASE VALIDATION: PRE- AND POST-ELECTION SELECTION STATUS; We only want 1 Same Respondent, pre and post
+# V201024 PRE: IN WHAT MANNER DID R VOTE
+# V202117 POST: HOW R VOTED IN 2020 ELECTION
+# V201101 PRE: DID R VOTE FOR PRESIDENT IN 2016
+
+working_election_df <- raw_election_df %>%
+  select(
+    V201231x, V201228, V201229, V201230, V201200, V201201, # Variables Concerning Party Affiliation
+    V200002, V200004, V200005, V200006, V200007, V201024, V202117, # Sample Control Variables
+    V201022, V201023, V202068x, # Voting Status Variables
+    V202119, V202120a, V202120b, V202120c, V202120d, V202120e, #
+    V202120f, V202120g, V202120h, V202120i, V202120j, V202120k, # Difficulty Voting Reasons
+    V202121, V202122, # Wait Times
+    V202066, # Did R Vote in 2020 Election
+    V202123, V202124, # Reasons Didn't Vote Main, Other
+    V201102 # PRE: DID R VOTE FOR PRESIDENT IN 2016
+  ) %>%
+  ## This will code some as independent when V201231x presents them as missing
+  ## However this number is very low 30 entries for the entire sample and they
+  ## are coded as independent which will be discarded for this exercise. The
+  ## summary variable V201321x codes them such that they would be discarded as well
+  ## According to a 2009 Paper which we will reference. this is the ANES accepted
+  ## methodology for 7 step party coding.
+  mutate(PID7 = case_when(
+    (V201228 == 2) & (V201229 == 1) ~ 7, # Strong Republican
+    (V201228 == 2) & (V201229 == 2) ~ 6, # Not Strong Republican
+    (V201228 == 1) & (V201229 == 1) ~ 1, # Strong Democrat
+    (V201228 == 1) & (V201229 == 2) ~ 2, # Not Strong Democrat
+    (V201230 == 1) ~ 5, # Independent Republican
+    (V201230 == 2) | (V201230 == -8) | (V201230 == -9) ~ 4, # Independent
+    (V201230 == 3) ~ 3, # Independent Democrat
+    TRUE ~ -9 # Missing Values
+  ), .before = 1)
+```
+
+```{r classify data by two parties, echo=FALSE}
+
+working_election_df <- working_election_df %>%
+  mutate(CHECK_PARTYID_CODING = case_when(
+    (PID7 != V201231x) ~ FALSE,
+    TRUE ~ TRUE
+  ), .before = 1)
+working_election_df <- working_election_df %>%
+  mutate(
+    PARTY = case_when(
+      (PID7 == 7) | (PID7 == 6) | (PID7 == 5) ~ "R", # Code these as Republicans
+      (PID7 == 1) | (PID7 == 2) | (PID7 == 3) ~ "D", # Code these as Democrats
+      TRUE ~ "I"
+    ), # Everyone else is Independents
+    .before = 1
+  )
+```
+
+```{r What is difficulty, echo=FALSE}
+# Some variables only apply to method of voting. We have two one from pre and one from post
+# that provides that kind of information V201024 How R voted in PRe and V202117 is how R voted
+# in post. We have very little data in either for how people actually voted.
+# filtering on V201024 there are 4759 rows are coded as -1 Inapplicable and V202117 also
+# has 4759 rows coded as Inapplicable. Therefore we cannot apply difficulty metrics based
+# on voting style.
+#
+#  V202119 is coded independent of method used and can be applied across all samples
+#  V202120[a-k] are coded independent of method used and can be applied across all samples
+#
+#  V202121 V202122; are coded dependent on in person voting we cannot use these across all samples
+#   therefore i'm omitting them from a difficulty calculation
+#
+#  V202123, V202124 Both these require has "booklet in ftf" I'm not sure what that means right now
+#  we've already restricted sample to web and other criteria so they should be valid. need to
+#  research what is "booklet in ftf". For now these are in We have people in the 5 I am not registered
+#  for both V202123 and V202124 even though we have specifically tried to exclude non registered voters above.
+#  I will omit 5 as a reason code for difficulty here. and filter them out above
+#  These codes are for people who didn't vote
+#
+#  V202123 Codes which indicate difficulty
+#     6. I did not have the correct form of identification
+#     7. Out of town
+#     8. Sick or disabled
+#     9. Transportation
+#    10. Bad weather
+#    11. The line at the polls was too long
+#    12. I was not allowed to vote at the polls, even though I tried
+#    13. I requested but did not receive an absentee ballot
+#    14. I did not know where to vote
+#
+#  V202124
+#     6. I did not have the correct form of identification
+#     7. Out of town
+#     8. Sick or disabled
+#     9. Transportation
+#    10. Bad weather
+#    11. The line at the polls was too long
+#    12. I was not allowed to vote at the polls, even though I tried
+#    13. I requested but did not receive an absentee ballot
+#    14. I did not know where to vote
+
+####
+##
+## Method One Yields Binary Data
+##      set this to the side for a second and consider only V202119 which appears
+##      valid for every case.
+
+working_election_df <- working_election_df %>%
+  mutate(
+    HAD_DIFFICULTY_VOTING = case_when(
+      (V202119 == 1) ~ 0, # Didn't have difficulty voting; Voters
+      (V202119 == 2) | (V202119 == 3) | (V202119 == 4) | (V202119 == 5) ~ 1, # Had difficulty Voting; Voters
+      (V202123 == 6) | (V202123 == 7) | (V202123 == 8) |
+        (V202123 == 9) | (V202123 == 10) | (V202123 == 11) |
+        (V202123 == 12) | (V202123 == 13) | (V202123 == 14) ~ 1, # Had difficulty Voting Primary Reason; Non Voters
+      (V202124 == 6) | (V202124 == 7) | (V202124 == 8) |
+        (V202124 == 9) | (V202124 == 10) | (V202124 == 11) |
+        (V202124 == 12) | (V202124 == 13) | (V202124 == 14) ~ 1, # Had difficulty Voting Secondary Reason; Non Voters
+      TRUE ~ -9,
+    ), # Everyone else is Independents
+    .before = 1
+  )
+```
+
+```{r filter pipline, echo=FALSE}
+################################################################################
+#
+# This pipeline is ugly. My limited ability with R and the time crunch of getting
+# this done, will keep me from making it what it should be, but I will clean 
+# the intermediate variables and make it at least tidy and easy to read.
+# I hereby state and certify, that I know how to build a proper pipeline,
+# but my lack of skill with the tools combined with the number of new tasks 
+# has left me with what sits here in this Rmd file. Apologies!
+
+################################################################################
+#
+# Filter Step One; Limit Sample to Only People Classified as Republicans or Democrats
+# Using our classification of R an D limit our sample to only rows which meet that critera
+#
+filtered_election_df_01 <- dplyr::filter(working_election_df, PARTY == "R" | PARTY == "D")
+removal_frame <- data.frame( reason="Drop repondents not identified as Republican or Democrat", number_samples_removed = nrow(working_election_df) - nrow(filtered_election_df_01))
+rm(working_election_df)
+
+################################################################################
+#
+# Filter Step Two: Limit Sample to Only People who are registered to vote.
+# Using POST election summary variable V202068x remove people who are not registered. Methodology for
+# summary variable is in the Appendix of the ANES Userguide. Also pull in anyone who's already
+# voted in the pre and confirmed they voted in pre. People who didn't confirm are omitted
+#
+filtered_election_df_02 <- dplyr::filter(filtered_election_df_01, ((V202068x == 1) | (V202068x == 2)) | ((V201022 == 1) & (V201023 == 1)))
+removal_frame <- rbind( removal_frame, data.frame( reason="Drop non registered voters.", number_samples_removed = nrow(filtered_election_df_01) - nrow(filtered_election_df_02)))
+rm(filtered_election_df_01)
+
+################################################################################
+#
+# Filter Step Three: Variables 202123 and 202124 are only available to provide difficulty information
+# for people who didn't vote and used the Web based interview format. Remove all other samples.
+#
+filtered_election_df_03 <- dplyr::filter(filtered_election_df_02, V200002 == 3)
+removal_frame <- rbind( removal_frame, data.frame( reason="Drop respondents who did not use the web survey.", number_samples_removed = nrow(filtered_election_df_02) - nrow(filtered_election_df_03)))
+rm(filtered_election_df_02)
+
+################################################################################
+#
+# Filter Step Four: Remove all samples which don't have both a pre-and a post interview followup
+#
+filtered_election_df_04 <- dplyr::filter(filtered_election_df_03, V200004 == 3)
+removal_frame <- rbind( removal_frame, data.frame( reason="Drop repondents who did not complete both pre and post sample interviews.", number_samples_removed = nrow(filtered_election_df_03) - nrow(filtered_election_df_04)))
+rm(filtered_election_df_03)
+
+################################################################################
+#
+# Filter Step Five: We only want samples with no Eligibility Concerns
+#
+filtered_election_df_05 <- dplyr::filter(filtered_election_df_04, V200005 == 0)
+removal_frame <- rbind( removal_frame, data.frame( reason="If respondents participated in the validation study, drop respondents with eligibility concerns.", number_samples_removed = nrow(filtered_election_df_04) - nrow(filtered_election_df_05)))
+rm(filtered_election_df_04)
+
+################################################################################
+#
+# Filter Step Six: Belt and Suspenders Some samples were chosen to participate in a validation
+# study. If the sample was not included in the study, include it -2 if the sample was included
+# in the study, only include the ones where respondent was definitely the selected person.
+# this could be amended to include only confirmed people, but that drops our sample pool down to
+# only ~350 samples
+#
+filtered_election_df_06 <- dplyr::filter(filtered_election_df_05, (V200006 == 1) | (V200006 == -2))
+removal_frame <- rbind( removal_frame, data.frame( reason="If respondents participated in the validation study, drop invalid respondents.", number_samples_removed = nrow(filtered_election_df_05) - nrow(filtered_election_df_06)))
+rm(filtered_election_df_05)
+
+################################################################################
+#
+# Filter Step Seven : If respondents participated in validation study and were flagged as invalid, drop them 
+# 
+filtered_election_df_07 <- dplyr::filter(filtered_election_df_06, (V200007 == 1) | (V200007 == -2))
+removal_frame <- rbind( removal_frame, data.frame( reason="If respondents participated in the validation study, drop invalid pre-post samples.", number_samples_removed = nrow(filtered_election_df_06) - nrow(filtered_election_df_07)))
+rm(filtered_election_df_06)
+
+################################################################################
+#
+# Filter Step Eight : Even though we specifically tried to eliminate non registered voters
+# from our sample some of them gave not being registered as a primary or secondary reason
+# for not voting in the election. For now we will filter them out here
+#
+tmp_removed <- 0
+filtered_election_df_08 <- dplyr::filter(filtered_election_df_07, (V202123 != 5))
+tmp_removed <- nrow(filtered_election_df_07) - nrow(filtered_election_df_08)
+filtered_election_df_09 <- dplyr::filter(filtered_election_df_08, (V202124 != 5))
+row_data_removed_by_filtering_not_registered_as_reason_for_not_voting <- nrow(filtered_election_df_08) - nrow(filtered_election_df_09) + tmp_removed
+removal_frame <- rbind( removal_frame, data.frame( reason="Remove samples listing \"Not Registered\" as difficulty reason for not voting.", number_samples_removed = row_data_removed_by_filtering_not_registered_as_reason_for_not_voting))
+rm(filtered_election_df_07, filtered_election_df_08, tmp_removed, row_data_removed_by_filtering_not_registered_as_reason_for_not_voting)
+
+################################################################################
+# Filter Step Nine; Remove samples where V202119 could was listed as Inapplicable
+#
+filtered_election_df_10 <- dplyr::filter(filtered_election_df_09, (V202119 != -1))
+removal_frame <- rbind( removal_frame, data.frame( reason="Remove samples where difficulty variable V202119 was coded Inapplicable.", number_samples_removed = nrow(filtered_election_df_09) - nrow(filtered_election_df_10)))
+rm(filtered_election_df_09)
+
+################################################################################
+# Filter Step Ten; Remove samples where we couldn't compute a difficulty
+#
+final_dataset_for_testing <- dplyr::filter(filtered_election_df_10, (HAD_DIFFICULTY_VOTING != -9))
+removal_frame <- rbind( removal_frame, data.frame( reason="Drop samples where we could not compute a value for voter difficulty.", number_samples_removed = nrow(filtered_election_df_10) - nrow(final_dataset_for_testing)))
+total_samples_removed_from_raw_data = sum(removal_frame$number_samples_removed)
+final_sample_size= nrow(final_dataset_for_testing)
+rm(filtered_election_df_10)
+```
+
+```{r ratings, echo=FALSE }
+rating_1_Rep = sum(dplyr::filter(final_dataset_for_testing, PARTY == "R")$V202119 == 1 , na.rm=TRUE) 
+rating_1_2_Rep = sum((dplyr::filter(final_dataset_for_testing, PARTY == "R")$V202119 == 1 | dplyr::filter(final_dataset_for_testing, PARTY == "R")$V202119 == 2) , na.rm=TRUE) 
+rating_other_Rep = length(dplyr::filter(final_dataset_for_testing, PARTY == "R")$V202119) - rating_1_2_Rep
+rating_1_RepRate = percent((rating_1_Rep / length(dplyr::filter(final_dataset_for_testing, PARTY == "R")$V202119)), accuracy = 1) 
+rating_1_Dem = sum(dplyr::filter(final_dataset_for_testing, PARTY == "D")$V202119 == 1 , na.rm=TRUE)
+rating_1_2_Dem = sum((dplyr::filter(final_dataset_for_testing, PARTY == "D")$V202119 == 1 | dplyr::filter(final_dataset_for_testing, PARTY == "D")$V202119 == 2) , na.rm=TRUE) 
+rating_other_Dem = length(dplyr::filter(final_dataset_for_testing, PARTY == "D")$V202119) - rating_1_2_Dem
+rating_1_DemRate = percent((rating_1_Dem / length(dplyr::filter(final_dataset_for_testing, PARTY == "D")$V202119)), accuracy = 1) 
+```
+
+# Importance and Context
+
+In the United States, voter turnout is a key measure of civic participation by the government and also is a key question to many political campaigns. Among the potential factors that affect voter turnout, there has been increasing attention on how voting access may impact voter turnout and even the election outcome, especially in the swing states. Access to voting has been a key debate between Democrats and Republicans, with the Republican party taking the stance that more safeguards should be established to protect the voting process by limiting access to polling places and the establishment of voter ID laws, and limied access to mail-in voting.    
+
+The Brookings Institute has commissioned us to understand which party has more difficulty voting. As part of their larger study on how difficulty voting by the two major political parties influences policy decisions within the party. We address the following research question in this study:
+```{=tex}
+\begin{quote}
+  \textit{Do members of the Democratic or Republican parties have more difficulty voting?}
+\end{quote}
+```
+Answering this question will provide insight into one of the factors affecting party policy decisions. 
+
+# Data and Methodology
+
+Our analysis leverages data from the 2020 American National Election Studies (ANES). This is an observational data set. Respondents received invitations including 10 dollars cash to participate in the study and 40 dollars upon completion of the study. Non responding households were offered escalating incentives up to 100 dollars later in the field period. The original ANES data set contains $`r num_samples_raw_df`$ respondents. These original samples are filtered down to our final working set according to Table 1.
+
+```{r table_of_removals}
+kable(
+      removal_frame,
+      align = "lr",
+      col.names = c("Removal Reason", "Number of Samples Removed"),
+      caption = "Samples Removed from ANES 2020 Timeseries Data",
+      booktabs = TRUE,
+)
+```
+
+Samples were removed for multiple reasons to ensure a consistent working data. Our analysis is looking at any difference in voting difficulty between Republicans and Democrats. We are not interested in respondents who identify as Independent and removed those samples from our data. We are only interested in respondents who are registered to vote, anyone who was not registered was dropped from our sample. Two of our variables for assessing difficulty were available for use only if the respondents participated in the web version of the survey and we removed samples that were obtained through other formats. Our methodology utilizes variables from both the pre and post voting portions of the survey to maintain consistency, respondents who did not complete both portions of the survey were dropped from our sample. ANES includes a subset of the respondents in a validation study if any eligibility concerns were raised for the samples which participated in the study they were omitted from our final data. In reviewing the post election results, despite filtering out non registered respondents in the prior step, we identified samples where "Not Registered" was listed as a reason for not voting. Because our final sample should only include registered voters, these samples were removed. The primary variable used to identify difficulty included data listed as "Inapplicable", we removed those samples since we are unable to assess difficulty for these samples. Finally, we omitted a sample where we were unable to compute a custom difficulty variable. These steps resulted in the removal of $`r total_samples_removed_from_raw_data`$ samples and a final sample size of $`r final_sample_size`$, including $`r sum(final_dataset_for_testing$PARTY == 'R', na.rm = TRUE)`$ Republicans and $`r sum(final_dataset_for_testing$PARTY == 'D', na.rm = TRUE)`$ Democrats.
+
+We identified a respondent as voter based on these criteria. Any respondent from the 2020 ANES Time Series study who was registered to vote for the 2020 election, cast their vote early or on election day, and completed both the pre and post portions of the ANES survey. We have not applied the weighting variables to the data and this classification cannot be extrapolated beyond the respondents in the original study.
+
+Classification of voters as Independent, Republican, or Democrat was conducted according to the guidelines laid out by the ANES in 2009 \footnote{https://electionstudies.org/wp-content/uploads/2018/03/20091208PartyID.pdf}. This procedure is documented on pp. 13-14 and is applicable to the 2020 time series data set. This methodology is based on three survey questions V201228 V201229 V201230, the SPSS code provided by the ANES was adapted to the 2020 Time Series Study and used to create a 7pt Party classification variable PID7. We later discovered the ANES includes this classification as a summary variable V201231x. We validated our PID7 variable against this summary variable provided by ANES and showed 100\% match for respondents classified as Republican or Democrat on the 7pt scale. After the voters were classified on the 7pt scale, a three classification party variable was established by taking each party's "Strong", "Not Very Strong" and "Independent" classifications and assigning them the base value of Republican or Democrat with Independents classified as Independents.
+
+For this study, we define voting difficulty based on the V202119 field. Difficulty in the voting process can arise from various factors like an error in the registration process, concern about ID card, difficulty obtaining an absentee ballot, difficulty reaching the polling place, etc. In the V202119 field, a 5-point rating scale is used to gauge voters' feeling of the voting process with 1 being not difficult and 5 being extremely difficult.  The V202119 field is used as our outcome variable. This study does not reflect the causal effect why respondents select a certain rating which could be of an interest in the future.
+
+The graphs below show the distribution of voting difficulty for Republican and Democratic voters in our final sample. The majority ($`r rating_1_DemRate`$\% of Democratics and $`r rating_1_RepRate`$\% of Republicans) of voters in our sample rated 1 (no difficulty), but there are still 9-12\% of the voters who experienced some level of voting difficulty. 
+```{r, histogram-figures, fig.show="hold", out.width="50%", fig.cap = "Voting Difficulty Values: 1- Not difficult at all;  2 - A little difficult; 3 - Moderately difficult; 4 - Very difficult; 5 - Extremely difficult"}
+hist(dplyr::filter(final_dataset_for_testing, PARTY == "R")$V202119,
+  main="Distribution of Voting Difficulty For Republican Voters",
+  xlab="Difficulty Scale",
+  labels = TRUE,
+  ylim=c(0,2500),
+  breaks = c(0,1,2,3,4,5))
+  
+
+hist(dplyr::filter(final_dataset_for_testing, PARTY == "D")$V202119,
+  main="Distribution of Voting Difficulty For Democratic Voters",
+  xlab="Difficulty Scale",
+  labels = TRUE,
+  ylim=c(0,2500),
+  breaks = c(0,1,2,3,4,5))
+```
+
+To answer our research question whether the Democratic or Republican voters have more or less voting difficulty, we evaluated what is the appropriate statistical test for our data set and research question. Our grouping variable (Party) is binary data (Republicans vs. Democrats) and our outcome variable (V202119 with a voting difficulty scale of 1-5) is a Likert scale. In this case, the most common test is the nonparametric Wilcoxon Rank Sum test for two independent samples. We also transformed several data fields (V202119, V202123, V202124) into a binary outcome data field "Had_Difficulty_Voting" (0 means no difficulty and 1 means having difficulty). So we could also perform the Welch two-sample t-test with the grouping variable (Party) with our grouping variable (Party) and the alternative outcome variable (Had_Difficulty_Voting) both being binary data. We proceeded with the Wilcoxon Rank Sum test because the V202119 Likert scale data is provided directly.
+
+The null hypothesis of our Wilcoxon Rank Sum test can be phased as follows:
+
+```{=tex}
+\begin{quote}
+  \textbf{Null Hypothesis:} \textit{The probability of Republicans having more voting difficulty than Democrats is the same as the probability of Republicans having less voting difficulty than Democrats}
+\end{quote}
+```
+In order for the Wilcoxon Rank Sum test to produce reliable results, the following must be true: 1) the data must be drawn from an i.i.d. sample; 2) data must be at least ordinal, and 3) no substantial differences in group sample sizes
+
+First, the ANES survey group consisted of respondents who had participated in the ANES 2016 Time Series Study. The remaining sample was based on a freshly drawn cross-section, and addresses were randomly assigned. Only one person from each selected address participated in the survey. So we can reasonably assume i.i.d in the data. Second, the outcome variable (V202119) with a 5-point scale and is ordinal data. Finally, the final sample size is 2163 for Republicans and 2458 for Democrats, no substantial difference.
+
+# Results
+```{r Run Wilcoxon Rank Sum Test on Samples, echo=TRUE}
+wilcox_result = wilcox.test(dplyr::filter(final_dataset_for_testing, PARTY == "R")$V202119, 
+                            dplyr::filter(final_dataset_for_testing, PARTY == "D")$V202119, 
+                            alternative = "two.sided", mu = 0, correct = TRUE, 
+                            exact = FALSE, conf.int = T, conf.level = 0.95)
+```
+The test shows p-value of $`r wilcox_result$p.value`$ which is smaller than 0.05 and therefore we reject the null hypothesis that the probability of Republicans and Democrats having the same amount of difficulty voting is equal.
+
+```{r run the Spearman rho test to determine the practical significance for wilcox_result_1, echo = TRUE, include=FALSE}
+#transform the PARTY field to a new field PARTY_NUM with numeric value (0 for D and 1 for R) to perform Spearman rho test
+spearman_data <- final_dataset_for_testing %>%
+  mutate(
+    PARTY_NUM = case_when(
+      (PARTY == 'D') ~ 0, # 0 for Democrats
+      (PARTY == 'R') ~ 1, # 1 for Republicans 
+    ), 
+    .before = 1
+  )
+corr = cor.test(spearman_data$PARTY_NUM, spearman_data$V202119, method = 'spearman', exact = FALSE)
+```
+We performed the Spearman rho test to evaluate the practical significance, the rho value is  `r corr$estimate` which indicates very small practical significance. For the Spearman rho test, rho value smaller than 0.1 to 0.3 on the positive side or -0.1 to -0.3 on the negative side is consider small effect.
+
+The 95\% confidence interval was -1.78e-06 to 2.65e-05 and provided no insight into which party had a more difficult time voting. We can say there is evidence of difference in difficulty between members of the two parties. But, that difference does not indicate which party might have more difficulty since our confidence interval straddles zero and is very small.  
+
+There are limitations in using the V202119 field to gauge the voting difficulty as it is observational data and reflects judgment of the respondents.  The data field does not provide information on what caused the respondent to have voting difficulty. Our final sample only included respondents who used the web survey. Additionally, our research focuses on the respondents who voted, and may have missed people who did not vote due to difficulty or had difficulty getting registered to vote.
+
+
+# Discussion
+
+This study found evidence that the probability that Republican and Democratic voters experience the same voting difficulty is not the same. However, the practice significance is very small and therefore this study by itself is not sufficient for the Brookings Institute to draw meaningful insight. An additional study will need to be conducted better quantify the difference in difficulty voting between two parties.
+
+We believe that further study of non-registered people or registered non-voters may provide further insight for the Brookings Institute.  
+
+
+
