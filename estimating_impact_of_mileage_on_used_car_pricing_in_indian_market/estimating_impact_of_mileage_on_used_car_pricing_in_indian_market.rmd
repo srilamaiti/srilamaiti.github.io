@@ -1,0 +1,585 @@
+---
+title: "Estimating the Impact of Mileage on Used Car Pricing in Indian Market"
+author: 'Srila Maiti'
+output:
+  pdf_document
+header-includes:
+ \usepackage{wrapfig}
+ \usepackage{float}
+ \floatplacement{figure}{H}
+---
+```{r load packages and set options, message = FALSE, include = FALSE}
+#tinytex::install_tinytex(force = TRUE)
+install.packages('knitr')
+install.packages('stargazer')
+install.packages('moments')
+install.packages('gridExtra')
+install.packages('GGally')
+install.packages('sandwitch')
+install.packages('janitor')
+install.packages('car')
+install.packages('stringr')
+install.packages('formatR')
+
+library(knitr)
+library(tidyverse)
+library(patchwork)
+library(ggplot2)
+library(GGally)
+library(sandwich)
+library(janitor)
+library(dplyr)
+library(lmtest)
+library(gridExtra)
+library(moments)
+library(stringr)
+library(car)
+library(stargazer)
+library(sys)
+library(stringr) 
+library(formatR)
+#library(install_tinytex)
+knitr::opts_chunk$set(echo = FALSE, message = FALSE)
+knitr::opts_chunk$set(tidy.opts = list(width.cutoff = 80), tidy = TRUE)
+set.seed(20220801)
+```
+```{r load data, message = FALSE, include = FALSE}
+auto <- read.csv("UsedCars_Combined.csv")
+names(auto) <- tolower(names(auto))
+names(auto) <- gsub(x = names(auto), pattern = "\\.", replacement = "_")  
+names(auto) <- gsub(x = names(auto), pattern = "\\_$", replacement = "")  
+cat("Dimension of entire data set =", dim(auto))
+cat("Columns of the data set :")
+names(auto)
+current_year = as.integer(format(Sys.Date(), "%Y"))
+```
+```{r data split between explore and confirmation set, message = FALSE, include =  FALSE}
+# Checking how many pre 2000 cars are there in the data set
+auto_pre_2000 = sum(auto$year < 2000)
+exclude_auto_stats <- data.frame( reason="Drop prior 2000 cars", number_samples_removed = auto_pre_2000)
+exclude_auto <- auto[auto$year < 2000, ]
+
+# Excluding pre 2000 cars from the data set
+auto <- auto[auto$year >= 2000, ]
+
+cat("Dimension of entire data set =", dim(auto))
+cat("Columns of the data set :")
+names(auto)
+
+# Checking how many CNG + 1 cars are there, CNG fuel types are rare in India.
+auto_cng = sum(auto$fuel_type == "CNG + 1")
+exclude_auto_stats <- rbind( exclude_auto_stats, 
+                       data.frame(reason="Drop CNG fuel type", 
+                                  number_samples_removed = auto_cng))
+exclude_auto <- rbind(exclude_auto, auto[auto$fuel_type == "CNG + 1", ])
+
+# Excluding CNG fuel cars from the data set
+auto <- auto[auto$fuel_type != "CNG + 1", ]
+
+cat("Dimension of entire data set =", dim(auto))
+cat("Columns of the data set :")
+names(auto)
+
+# Checking how many Hybrid cars are there, Hybrid fuel types are rare in India.
+auto_hybrid = sum(auto$fuel_type == "Hybrid")
+exclude_auto_stats <- rbind(exclude_auto_stats, 
+                       data.frame(reason="Drop Hybrid fuel type", 
+                                  number_samples_removed = auto_hybrid))
+exclude_auto <- rbind(exclude_auto, auto[auto$fuel_type == "Hybrid", ])
+
+# Excluding Hybrid fuel cars from the data set
+auto <- auto[auto$fuel_type != "Hybrid", ]
+
+cat("Dimension of entire data set =", dim(auto))
+cat("Columns of the data set :")
+names(auto)
+
+# Checking how many cars with less than 2K mileage are there
+auto_lt_2k = sum(auto$distance_travelled_kms < 2000)
+exclude_auto_stats <- rbind( exclude_auto_stats, 
+                       data.frame(reason="Drop cars with less than 2000 Km mileage", 
+                                  number_samples_removed = auto_lt_2k))
+exclude_auto <- rbind(exclude_auto, auto[auto$distance_travelled_kms < 2000, ])
+
+# Excluding cars with less than 2K mileage from the data set
+auto <- auto[auto$fuel_type >= 2000, ]
+
+cat("Dimension of entire data set =", dim(auto))
+cat("Columns of the data set :")
+names(auto)
+
+explore_auto <- auto %>% group_by(year, fuel_type) %>% sample_frac(size = .3)
+confirm_auto <- subset(auto, !(id %in% explore_auto$id))
+
+cat("Dimension of entire data set =", dim(auto), ",\nDimension of explore data set =", dim(explore_auto), ",\nDimension of confirmation data set =", dim(confirm_auto))
+
+# Write the interim explore and confirm data set back in files
+# write.csv(explore_auto,"/Users/srilamaiti/Documents/GitHub/W203_lab2/src/data/interim/explore_auto.csv", row.names = FALSE)
+# write.csv(confirm_auto,"/Users/srilamaiti/Documents/GitHub/W203_lab2/src/data/interim/confirm_auto.csv", row.names = FALSE)
+```
+```{r EDA, message = FALSE, include = FALSE}
+cat("\nSummary of explore data set :\n")
+summary(explore_auto)
+cat("Check for NULLs in explore data set")
+lapply(explore_auto, function(x) { length(which(is.na(x)))})
+cat("Check for NULLs in confirm data set")
+lapply(confirm_auto, function(x) { length(which(is.na(x)))})
+#Check count of unique values in the data set explore_auto
+sapply(explore_auto, function(x) length(unique(x)))
+#Check count of unique values in the data set confirm_auto
+sapply(confirm_auto, function(x) length(unique(x)))
+#Check unque values in explore_auto
+sapply(explore_auto, function(x) unique(x))
+#Check unque values in confirm_auto
+sapply(confirm_auto, function(x) unique(x))
+```
+```{r wrire interim files, message = FALSE, include = FALSE}
+write.csv(explore_auto,"explore_auto_interim.csv",row.names=FALSE)
+write.csv(confirm_auto,"confirm_auto_interim.csv",row.names=FALSE)
+write.csv(exclude_auto,"exclude_auto_interim.csv",row.names=FALSE)
+write.csv(exclude_auto_stats,"exclude_auto_stats_interim.csv",row.names=FALSE)
+```
+```{r data processing, message = FALSE, include = FALSE}
+# Drop columns in explore_auto
+explore_auto <- explore_auto[ , !names(explore_auto) %in% c("id", "model", "full_model_name")]
+
+# Drop columns in confirm_auto
+confirm_auto <- confirm_auto[ , !names(confirm_auto) %in% c("id", "model", "full_model_name")]
+
+cat("Dimension of entire data set =", dim(auto), ",\nDimension of explore data set =", dim(explore_auto), ",\nDimension of confirmation data set =", dim(confirm_auto))
+cat("Columns of the explore_auto and confirm_auto data set :")
+names(explore_auto)
+
+# Convert price in 100K INR for both explore_auto and confirm_auto
+explore_auto$price_in_100k_inr <-explore_auto$price / 100000
+confirm_auto$price_in_100k_inr <-confirm_auto$price / 100000
+
+# Drop price from both explore_auto and confirm_auto
+explore_auto <- explore_auto[ , !names(explore_auto) %in% c("price")]
+confirm_auto <- confirm_auto[ , !names(confirm_auto) %in% c("price")]
+
+cat("Dimension of entire data set =", dim(auto), ",\nDimension of explore data set =", dim(explore_auto), ",\nDimension of confirmation data set =", dim(confirm_auto))
+cat("Columns of the explore_auto and confirm_auto data set :")
+names(explore_auto)
+
+# Convert distance in 10K Kilometer for both explore_auto and confirm_auto
+explore_auto$distance_travelled_in_10k_km <-explore_auto$distance_travelled_kms / 10000
+confirm_auto$distance_travelled_in_10k_km <-confirm_auto$distance_travelled_kms / 10000
+
+# Drop distance_travelled from both explore_auto and confirm_auto
+explore_auto <- explore_auto[ , !names(explore_auto) %in% c("distance_travelled_kms")]
+confirm_auto <- confirm_auto[ , !names(confirm_auto) %in% c("distance_travelled_kms")]
+
+cat("Dimension of entire data set =", dim(auto), ",\nDimension of explore data set =", dim(explore_auto), ",\nDimension of confirmation data set =", dim(confirm_auto))
+cat("Columns of the explore_auto and confirm_auto data set :")
+names(explore_auto)
+
+# Map fuel type Petrol + 1 to Petrol for both explore_auto and confirm_auto
+explore_auto <- explore_auto %>%mutate(fuel_type_cleaned = ifelse (fuel_type == "Petrol + 1", "Petrol", fuel_type))
+                                       
+confirm_auto <- confirm_auto %>%mutate(fuel_type_cleaned = ifelse (fuel_type == "Petrol + 1", "Petrol", fuel_type))
+
+# Drop fuel_type from both explore_auto and confirm_auto
+explore_auto <- explore_auto[ , !names(explore_auto) %in% c("fuel_type")]
+confirm_auto <- confirm_auto[ , !names(confirm_auto) %in% c("fuel_type")]
+
+cat("Dimension of entire data set =", dim(auto), ",\nDimension of explore data set =", dim(explore_auto), ",\nDimension of confirmation data set =", dim(confirm_auto))
+cat("Columns of the explore_auto and confirm_auto data set :")
+names(explore_auto)
+
+# Map brand names of Mahindra-Renault and Renault to Mahindra as they are joint venture in India.
+# Map Land Rover and Jagur to Tata as they are bought by Tata Motors.
+# Transformation is done for explore_auto
+explore_auto <- explore_auto %>% 
+                mutate(car_brand = case_when ((brand == "Mahindra-Renault") ~ "Renault",
+                                             (brand == "Renault") ~ "Renault", 
+                                             (brand == "Land Rover") ~ "Tata", 
+                                             (brand == "Jaguar") ~ "Tata",
+                                             (brand == "Lexus") ~ "Toyota",
+                                             (brand == "Porsche") ~ "Volkswagen",
+                                             (brand == "Bentley") ~ "Volkswagen",
+                                             (brand == "Audi") ~ "Volkswagen",
+                                             (brand == "Chevrolet") ~ "Stellantis",
+                                             (brand == "Datsun") ~ "Nissan",
+                                             (brand == "Jeep") ~ "Stellantis",
+                                             (brand == "Fiat") ~ "Stellantis",
+                                             (brand == "Kia") ~ "Hyundai",
+                                             (brand == "MINI") ~ "BMW",
+                                             (brand == "Skoda") ~ "Volkswagen",
+                                             TRUE ~ brand))
+
+# Transformation is done for confirm_auto
+confirm_auto <- confirm_auto %>% 
+                mutate(car_brand = case_when ((brand == "Mahindra-Renault") ~ "Renault",
+                                             (brand == "Renault") ~ "Renault", 
+                                             (brand == "Land Rover") ~ "Tata", 
+                                             (brand == "Jaguar") ~ "Tata",
+                                             (brand == "Lexus") ~ "Toyota",
+                                             (brand == "Porsche") ~ "Volkswagen",
+                                             (brand == "Bentley") ~ "Volkswagen",
+                                             (brand == "Audi") ~ "Volkswagen",
+                                             (brand == "Chevrolet") ~ "Stellantis",
+                                             (brand == "Datsun") ~ "Nissan",
+                                             (brand == "Jeep") ~ "Stellantis",
+                                             (brand == "Fiat") ~ "Stellantis",
+                                             (brand == "Kia") ~ "Hyundai",
+                                             (brand == "MINI") ~ "BMW",
+                                             (brand == "Skoda") ~ "Volkswagen",
+                                             TRUE ~ brand))
+
+cat("Dimension of entire data set =", dim(auto), ",\nDimension of explore data set =", dim(explore_auto), ",\nDimension of confirmation data set =", dim(confirm_auto))
+cat("Columns of the explore_auto and confirm_auto data set :")
+names(explore_auto)
+
+# Create car manufacturer column for both explore_auto and confirm-auto
+explore_auto <- explore_auto %>%
+  mutate(
+    car_manufacturer = case_when(
+      brand == "Mahindra-Renault" ~ "Renault",
+      TRUE ~ brand
+  ))  
+  
+confirm_auto <- confirm_auto %>%
+  mutate(
+    car_manufacturer = case_when(
+      brand == "Mahindra-Renault" ~ "Renault",
+      TRUE ~ brand
+  ))  
+
+# Drop brand from both explore_auto and confirm_auto
+explore_auto <- explore_auto[ , !names(explore_auto) %in% c("brand")]
+confirm_auto <- confirm_auto[ , !names(confirm_auto) %in% c("brand")]
+
+cat("Dimension of entire data set =", dim(auto), ",\nDimension of explore data set =", dim(explore_auto), ",\nDimension of confirmation data set =", dim(confirm_auto))
+cat("Columns of the explore_auto and confirm_auto data set :")
+names(explore_auto)
+
+# Map smaller cities to nearby larger cities/region
+explore_auto <- explore_auto %>% 
+                mutate(region = case_when(
+                                          city == "Thane" ~ "Mumbai",
+                                          city == "Navi Mumbai" ~ "Mumbai",
+                                          city == "Pune" ~ "Mumbai",
+  
+                                          city == "Agra" ~ "Delhi",
+                                          city == "Faridabad" ~ "Delhi",
+                                          city == "Ghaziabad" ~ "Delhi",
+                                          city == "Dehradun" ~ "Delhi",
+                                          city == "Lucknow" ~ "Delhi",
+                                          city == "Noida" ~ "Delhi",
+                                          city == "Panchkula" ~ "Delhi",
+                                          TRUE ~ city))
+
+confirm_auto <- confirm_auto %>% 
+                mutate(region = case_when(
+                                          city == "Thane" ~ "Mumbai",
+                                          city == "Navi Mumbai" ~ "Mumbai",
+                                          city == "Pune" ~ "Mumbai",
+  
+                                          city == "Agra" ~ "Delhi",
+                                          city == "Faridabad" ~ "Delhi",
+                                          city == "Ghaziabad" ~ "Delhi",
+                                          city == "Dehradun" ~ "Delhi",
+                                          city == "Lucknow" ~ "Delhi",
+                                          city == "Noida" ~ "Delhi",
+                                          city == "Panchkula" ~ "Delhi",
+                                          TRUE ~ city))
+
+# Drop city from both explore_auto and confirm_auto
+explore_auto <- explore_auto[ , !names(explore_auto) %in% c("city")]
+confirm_auto <- confirm_auto[ , !names(confirm_auto) %in% c("city")]
+
+cat("Dimension of entire data set =", dim(auto), ",\nDimension of explore data set =", dim(explore_auto), ",\nDimension of confirmation data set =", dim(confirm_auto))
+cat("Columns of the explore_auto and confirm_auto data set :")
+names(explore_auto)
+
+# Add luxury_vs_regular flag
+explore_auto <- explore_auto %>% 
+                mutate(luxury_vs_regular = case_when((car_brand == "BMW") ~ "Luxury",
+                                                     (car_brand == "Mercedes-Benz") ~ "Luxury",
+                                                     (car_manufacturer == "Land Rover") ~ "Luxury",
+                                                     (car_manufacturer == "Jaguar") ~ "Luxury",
+                                                     (car_manufacturer == "Audi") ~ "Luxury",
+                                                     (car_manufacturer == "Bentley") ~ "Luxury",
+                                                     (car_manufacturer == "Porshe") ~ "Luxury",
+                                                     (car_manufacturer == "Volvo") ~ "Luxury",
+                                                     (car_manufacturer == "Lamborghini") ~ "Luxury",
+                                                     TRUE ~ 'Regular'
+                                          ))
+
+confirm_auto <- confirm_auto %>% 
+                mutate(luxury_vs_regular = case_when((car_brand == "BMW") ~ "Luxury",
+                                                     (car_brand == "Mercedes-Benz") ~ "Luxury",
+                                                     (car_manufacturer == "Land Rover") ~ "Luxury",
+                                                     (car_manufacturer == "Jaguar") ~ "Luxury",
+                                                     (car_manufacturer == "Audi") ~ "Luxury",
+                                                     (car_manufacturer == "Bentley") ~ "Luxury",
+                                                     (car_manufacturer == "Porshe") ~ "Luxury",
+                                                     (car_manufacturer == "Volvo") ~ "Luxury",
+                                                     (car_manufacturer == "Lamborghini") ~ "Luxury",
+                                                     TRUE ~ 'Regular'
+                                          ))
+
+cat("Dimension of entire data set =", dim(auto), ",\nDimension of explore data set =", dim(explore_auto), ",\nDimension of confirmation data set =", dim(confirm_auto))
+cat("Columns of the explore_auto and confirm_auto data set :")
+names(explore_auto)
+
+# Adding new columns immediate_sold and car_age_in_years_during_sale for explore_auto
+explore_auto <- explore_auto %>% mutate(
+  immediate_sold = current_year == year + 1,
+  car_age_in_years_during_sale = current_year - year
+)
+
+# Adding new columns immediate_sold and car_age_in_years_during_sale for confirm_auto
+confirm_auto <- confirm_auto %>% mutate(
+  immediate_sold = current_year == year + 1,
+  car_age_in_years_during_sale = current_year - year
+)
+
+cat("Dimension of entire data set =", dim(auto), ",\nDimension of explore data set =", dim(explore_auto), ",\nDimension of confirmation data set =", dim(confirm_auto))
+cat("Columns of the explore_auto and confirm_auto data set :")
+names(explore_auto)
+```
+```{r histogram, message = FALSE, include = FALSE}
+hist_distance_travelled_in_10k_km <- explore_auto %>%
+  ggplot(aes(x = distance_travelled_in_10k_km)) +
+  geom_histogram() +
+  labs(x = "distance_travelled_in_10k_km", title = "Distribution of distance_travelled_in_10k_km")
+hist_distance_travelled_in_10k_km
+
+hist_log_distance_travelled_in_10k_km <- explore_auto %>%
+  ggplot(aes(x = log(distance_travelled_in_10k_km))) +
+  geom_histogram() +
+  labs(x = "log(distance_travelled_in_10k_km)", title = "Distribution of log of distance_travelled_in_10k_km")
+hist_log_distance_travelled_in_10k_km
+
+hist_price_in_100k_inr <- explore_auto %>%
+  ggplot(aes(x = price_in_100k_inr)) +
+  geom_histogram() +
+  labs(x = "price_in_100k_inr", title = "Distribution of price_in_100k_inr")
+hist_price_in_100k_inr
+
+hist_log_price_in_100k_inr <- explore_auto %>%
+  ggplot(aes(x = log(price_in_100k_inr))) +
+  geom_histogram() +
+  labs(x = "log(price_in_100k_inr)", title = "Distribution of log of price_in_100k_inr")
+hist_log_price_in_100k_inr
+```
+```{r plot, message = FALSE, include = FALSE}
+plot(x = log(explore_auto$distance_travelled_in_10k_km),
+     y = log(explore_auto$price_in_100k_inr),
+     data = explore_auto)
+```
+```{r add log transformed columns, message = FALSE, include = FALSE}
+explore_auto$log_distance_travelled_in_10k_km <- log(explore_auto$distance_travelled_in_10k_km)
+confirm_auto$log_distance_travelled_in_10k_km <- log(confirm_auto$distance_travelled_in_10k_km)
+explore_auto$log_price_in_100k_inr <- log(explore_auto$price_in_100k_inr)
+confirm_auto$log_price_in_100k_inr <- log(confirm_auto$price_in_100k_inr)
+
+cat("Dimension of entire data set =", dim(auto), ",\nDimension of explore data set =", dim(explore_auto), ",\nDimension of confirmation data set =", dim(confirm_auto))
+cat("Columns of the explore_auto and confirm_auto data set :")
+names(explore_auto)
+```
+```{r wrire processed files, message = FALSE, include = FALSE}
+write.csv(explore_auto,"explore_auto_processed.csv",row.names=FALSE)
+write.csv(confirm_auto,"confirm_auto_processed.csv",row.names=FALSE)
+```
+## Introduction 
+
+As today’s automobile industry is facing the car-chip shortage across the world and the entire globe is facing the unstable economic condition caused by pandemic and inflation, the buyers are shifting their focus towards the pre-owned cars. 
+
+The car experts provide some broad guidelines and data-based approaches to estimate the factors affecting the market value of the used cars. It has been traditionally thought that mileage is the main driver for used car valuation, but I seek to examine other factors that may influence the price of used cars, such as the car manufacturers, and regular or luxury cars, fuel type, region.
+
+In this study, I would like to answer the below question:-\
+**How much effect the mileage has on the used car valuation in Indian car market?**
+
+## Data and Methodology
+The original observational data set is sourced from Carsdekho.com via scraping through selenium, scrapy and beautifulsoup and was made available in Kaggle as a public data set, linked here [UsedCars_Combined.csv](https://www.kaggle.com/datasets/sanjeetsinghnaik/used-car-information?select=UsedCars_Combined.csv). Each row in the data set represents the market value of a pre-owned car in Indian market, aging between `r min(auto$year)` to `r max(auto$year)` in Indian Rupees (INR).  There are a total of `r nrow(auto)` rows and `r ncol(auto)` columns in the auto dataset and 30\% exploration data set is created by stratification sampling based on year and fuel type and remaining 70\% records are used as the confirmation data set to generate the statistics in this report. 
+
+  ```{r exclude_auto_stats, tidy = FALSE}
+      data1 <- tribble(
+      ~"Filter",                                  ~"Records Removed", ~"Justification",
+      "Drop prior 2000 cars",                     "1",                "Very old car",
+      "Drop CNG fuel type",                       "8",                "Rare fuel in India",
+      "Drop Hybrid fuel type",                    "1",                "Rare fuel in India",
+      "Drop cars with less than 2000 Km mileage", "7",                "Farley new car"
+      )
+    knitr::kable((data1), booktabs = TRUE,
+    caption = 'Excluded Auto Records')
+  ```
+  ```{r transformation logic, tidy = FALSE}
+      data1 <- tribble(
+      ~"Transformation",                                    ~"Justification",
+      "price transformed in unit of 100,000 INR",           "Most car prices are above 100,000 INR(known as lakhs).",
+      "distance transformed in unit of 10K km",            "Scale down mileage in smaller numbers",
+      "fuel_type to fuel_type_cleaned",                     "'Petrol + 1' to 'Petrol' and rest fuel type as is",
+      "city transformed to region",                         "Merged suburbs to larger geographic region",
+      "brand to generate car_manufacturer and car_brand",   "Car manufacturer and car brand can be different",
+      "Added column luxury_vs_regular",                     "Based on background knowledge of the car brand.",
+      "Log transformation on price_in_100k_inr",            "Skewed distribution",
+      "Log transformation on distance_travelled_in_10k_km", "Skewed distribution",
+      "Added column car_age_in_years_during_sale",          "Car age information",
+      "Added column immediate_sold",                        "Denotes if the car is immediately sold or not"
+      )
+    knitr::kable((data1), booktabs = TRUE,
+    caption = 'Transformation Applied')
+  ```
+  * Operationalization:-
+      
+      ```{r operationalization, tidy = FALSE}
+      data1 <- tribble(
+      ~"Operationalize",       ~"Actual Column Used",              ~"Type",
+      "Used car market value", "log_price_in_100k_inr",            "Outcome variable, represented as Y",
+      "Distance travelled",    "log_distance_travelled_in_10k_km", "Independent variable, represented as X"
+      )
+    knitr::kable((data1), booktabs = TRUE,
+    caption = 'Operationalization')
+    ```
+    + I decided to take the log transformations for both explanatory and outcome variables due to the skewness of the distributions.
+
+    * Excluded Features:-
+    
+        + From the original data set with 9 features (id, year, brand, full_model_name, model_name, price, city, distance_travelled_kms, fuel_type)
+            + I have dropped id column as it does not add any business value. 
+            + I have also dropped full_model_name column as model_name is already present.
+
+```{r figure_1, echo = FALSE, message = FALSE, fig.cap = "Used Car's of Market Value as a Function of Log of Distance Travelled", fig.height = 3.5, fig.width = 3.5}
+explore_auto %>% mutate(luxury_vs_regular = factor(luxury_vs_regular)) %>% 
+  ggplot(aes(y = price_in_100k_inr, 
+             x = distance_travelled_in_10k_km, 
+             colour = luxury_vs_regular)) + geom_point(alpha = .5) +
+  geom_smooth(se = FALSE) +  
+  xlab('Distance Travelled in 10K Kilometers') + 
+  ylab('Car Price in 100,000 INR') +
+  theme(legend.title = element_blank(), legend.position = c(.8, 0.84))
+```
+```{r figure_2, echo = FALSE, message = FALSE, fig.cap = "Used Car's Log of Market Value as a Function of Log of Distance Travelled", fig.height = 3.5, fig.width = 3.5}
+explore_auto %>% mutate(luxury_vs_regular = factor(luxury_vs_regular)) %>% 
+  ggplot(aes(y = log_price_in_100k_inr, 
+             x = log_distance_travelled_in_10k_km, 
+             colour = luxury_vs_regular)) + geom_point(alpha = .5) +
+  geom_smooth(se = FALSE) +  
+  xlab('Log Distance Travelled in 10K Kilometers') + 
+  ylab('Log Car Price in 100,000 INR') +
+  theme(legend.title = element_blank(), legend.position = c(.8, 0.84))
+```
+
+I am interested in the difference in value between two counterfactuals: used car's market valuation with distance traveled, and used car's market valuation for luxury vs regular car. 
+
+I created a base regression model using car price and mileage to see the effect of mileage on the price. I also built few other regression models to see the effects of other factors like fuel type, luxury vs regular car, car age and car manufacturers and region.
+$$Z\ is\ a\ row\ vector\ of\ additional\ covariates\ and \\gamma\ is\ a\ column\ vector\ of\ coefficients.$$
+$$\widehat{log(price\ in\ 100k)}=\beta_0 + \beta_1 \cdot log(distance\ in\ 10k\ km) + \mathbf{Z\gamma}$$
+$$\widehat{log(price\ in\ 100k)}=\beta_0 + \beta_1 \cdot log(distance\ in\ 10k\ km) + \beta_2\cdot petrol + \beta_3\cdot regular + \mathbf{Z\gamma}$$
+$$\widehat{log(price\ in\ 100k)}=\beta_0 + \beta_1 \cdot log(distance\ in\ 10k\ km) + \beta_2\cdot petrol + \beta_3\cdot regular + \beta_4\cdot car\ age + \mathbf{Z\gamma}$$
+$$\widehat{log(price\ in\ 100k)}=\beta_0 + \beta_1 \cdot log(distance\ in\ 10k\ km) + \beta_2\cdot petrol + \beta_3\cdot regular + \beta_4\cdot car\ age + \beta_5\cdot manufacturer + \mathbf{Z\gamma}$$
+$$\widehat{log(price\ in\ 100k)}=\beta_0 + \beta_1 \cdot log(distance\ in\ 10k\ km) + \beta_2\cdot petrol + \beta_3\cdot regular + \beta_4\cdot car\ age + \beta_5\cdot manufacturer + \beta_6\cdot region + \mathbf{Z\gamma}$$
+
+## Results
+```{r fit models, message = FALSE, include = FALSE}
+# Base model with log_distance_travelled_in_10k_km vs log_price_in_100k_inr
+m_base <- confirm_auto %>% lm(log_price_in_100k_inr ~ log_distance_travelled_in_10k_km, data = .)
+se_base <- m_base %>% vcovHC(type = "HC1") %>% diag() %>% sqrt()
+print(summary(m_base))
+
+# Releveling the independent variables
+# Diesel cars are more in number than that of Petrol, setting Diesel cars as base case
+confirm_auto$fuel_type_cleaned <- relevel(as.factor(confirm_auto$fuel_type_cleaned), ref = "Diesel")
+# Hyundai cars are more in number than any other manufacturers, hence setting Hyundai cars as base case
+confirm_auto$car_manufacturer <- relevel(as.factor(confirm_auto$car_manufacturer), ref = "Hyundai")
+# Not immediately sold cars are more in number than that of immediately sold cars, hence setting not immediately sold cars as base case
+confirm_auto$immediate_sold <- relevel(as.factor(confirm_auto$immediate_sold), ref = 1)
+# In Indian car market, Regular cars are more in number, hence setting regular cars as base case
+confirm_auto$domestic_or_international <- relevel(as.factor(confirm_auto$luxury_vs_regular), ref = "Regular")
+# Number of cars are more in Chennai region than any other regions
+confirm_auto$region <- relevel(as.factor(confirm_auto$region), ref = "Chennai")
+
+# Level 1 model with log distance and fuel vs price
+m_level_1 <- confirm_auto %>% lm(log_price_in_100k_inr ~ log_distance_travelled_in_10k_km + fuel_type_cleaned, data = .)
+se_level_1 <- m_level_1 %>% vcovHC(type = "HC1") %>% diag() %>% sqrt()
+print(summary(m_level_1))
+
+# Level 2 model with log distance and fuel and luxury_vs_regular car indicator vs price
+m_level_2 <- confirm_auto %>% lm(log_price_in_100k_inr ~ log_distance_travelled_in_10k_km + fuel_type_cleaned + luxury_vs_regular, data = .)
+se_level_2 <- m_level_2 %>% vcovHC(type = "HC1") %>% diag() %>% sqrt()
+print(summary(m_level_2))
+
+# Level 3 model with log distance and fuel and luxury_vs_regular car indicator and car age vs price
+m_level_3 <- confirm_auto %>% lm(log_price_in_100k_inr ~ log_distance_travelled_in_10k_km + fuel_type_cleaned + luxury_vs_regular + car_age_in_years_during_sale, data = .)
+se_level_3 <- m_level_3 %>% vcovHC(type = "HC1") %>% diag() %>% sqrt()
+print(summary(m_level_3))
+
+# Level 4 model with log distance and fuel and luxury_vs_regular car indicator and car age and car manufacturer vs price
+m_level_4 <- confirm_auto %>% lm(log_price_in_100k_inr ~ log_distance_travelled_in_10k_km + fuel_type_cleaned +  luxury_vs_regular + car_age_in_years_during_sale + car_manufacturer , data = .)
+se_level_4 <- m_level_4 %>% vcovHC(type = "HC1") %>% diag() %>% sqrt()
+print(summary(m_level_4))
+
+# Level 5 model with log distance and fuel and luxury_vs_regular car indicator and car age and car manufacturer and region vs price
+m_level_5 <- confirm_auto %>% lm(log_price_in_100k_inr ~ log_distance_travelled_in_10k_km + fuel_type_cleaned +  luxury_vs_regular + car_age_in_years_during_sale + car_manufacturer + region, data = .)
+se_level_5 <- m_level_5 %>% vcovHC(type = "HC1") %>% diag() %>% sqrt()
+print(summary(m_level_5))
+```
+```{r display regression table, message = FALSE, echo = FALSE, results = 'asis'}
+stargazer(m_base, 
+          m_level_2, 
+          m_level_3,
+          m_level_4,
+          m_level_5,
+          type = 'latex', 
+          se = list(se_base, 
+                    se_level_2, 
+                    se_level_3,
+                    se_level_4,
+                    se_level_5
+                    ),
+          header=FALSE,
+          single.row = TRUE, # to put coefficients and standard errors on same line
+          no.space = TRUE, # to remove the spaces after each line of coefficients
+          column.sep.width = "3pt", # to reduce column width
+          font.size = "small", # to make font size smaller
+          title = "Estimated Car Market Value",
+          dep.var.caption  = "Outcome Variable: Log Car Price in 100K INR",
+          dep.var.labels   = "",
+          star.cutoffs = c(0.05, 0.01, 0.001),
+          omit.stat=c("adj.rsq","f"), 
+          digits=2,
+          omit = c("car_manufacturer", "region"),
+          covariate.labels = c("Log Distance in 10K Km.", 
+                               "Petrol",
+                               "Regular",
+                               "Car Age",
+                               "Constant"),
+          add.lines = list(
+            c("Car Manufacturer", "", "", "", "\\checkmark","\\checkmark"),
+            c("Region", "", "", "", "", "\\checkmark"),
+            "\\hline"
+          ),
+          notes = "\\parbox[t]{.55\\textwidth}{$HC_1$ robust standard errors in parentheses.\\\\}", notes.align='l'
+)
+```
+  * Table 4 shows the results of five representative regressions.  
+    + Coefficient for log Distance in 10K Km. is significant in the first model with very little explanatory power of 3 %. Every 100 km increase in mileage leads to a price drop by INR 190, using small number approximation.
+    + On average, holding all other factors constant, petrol cars show less depreciation over diesel cars according to model 2, 3, 4 and 5. Model 5 shows, on average, holding all other factors constant, petrol cars will have INR. 810.58 less depreciation than diesel cars.
+    + On average, holding all other factors constant, regular cars show less depreciation over luxury cars according to model 2, 3, 4 and 5. Model 5 shows, on average, holding all other factors constant, regular cars will have INR. 239.30 less depreciation than luxury cars.
+    + On average, holding all other factors constant, according to model 5, with every 1 year of aging, causes 13% car price depreciation, that is INR 13,000. 
+    + And finally, car manufacturer plays a major role in the used car's market valuation. Adding this factor in model 4, brings back model explanability power to 83% and also reducing the residual standard error to .37.
+    + Coefficient for log Distance in 10K Km. is no longer significant after adding the regular car indicator, car age and car manufacturer and region.
+    
+## Limitations
+
+Consistent regression estimates follow the assumption of independent and identically distributed (IID) observations. Car price can fluctuate in various regions. So, there is a possibility of geographical clustering. I partly accounted for geographic clustering in model 4 and 5, by including a fixed effect for each region that is interacted with car price estimate. In other words, each region has a unique slope and linear trend over car price. I am not able to account for minute geographical clustering within each region.
+
+Because car sales happen over a significantly long-time frame, there is a further possibility of temporal autocorrelation. Car price in recent years will be more than that of past car prices, in other words, the same car worth more in 2022 than it 5 year back.
+
+Both the car mileage and car price have skewed distribution, violating the normal distribution. As a result, I have taken log distribution for both variables.
+
+Consistent regression also requires unique BLP and to satisfy unique BLP (Best Linear Predictor), we need to have finite mean and variance. However, based on the histogram for both distance traveled and car price, I see that they are largely right-skewed (Pareto Distribution) and also contains several outliers. With and without outliers, the distribution look very different, which implies that there may not be a unique BLP. 
+
+Car data set may have some inherent problems. More international cars will be available in recent years than that of in the past and year wise car data can vary widely. To cater this problem, I used a stratified sampling to build a more representative exploration set and used the remaining as the confirmation set.
+
+As far as structural limitations, several omitted variables may bias my used car's market value estimates. In a classic omitted variables framework, the omitted variable is assumed not to interact with the key variable in the true model. An example of such variable is car accident history. More mileage can cause more accidents thus affecting the outcome variable or because of more accidents, car mileage will be less (common ancestor / classic omitted variable). Other omitted variables can be maintenance, the more a car is maintained, the better resell value it offers. Thus, the depreciation value would be lower in such cases. Number of past car owners can affect the car market value. If the car purchase history shows fewer ownership changes, it has a better chances of getting good resell value. If the car is used for business purpose (Ex. Uber), car market value will be affected. I predict that all these omitted variables likely to have negative effect on the car market value in the true model, I predict a positive omitted variable bias on the key variables and the main effect is therefore being driven away from zero, making my hypothesis tests overconfident. 
+
+## Conclusion
+
+This study estimates how the various factors affect the market value of the pre-owned car in India. We notice that in Indian car market, petrol cars have lesser depreciation compared to diesel cars and luxury cars depreciate much faster than regular economy cars. Alhough, more car mileage causes the car depreciate faster, we see the mileage effect fades off with the factors of car fuel and car manufacturer. In other words, car manufacturer, car type (luxury or regular), car fuel cause car depreciation more significantly. So, while determining the price of the used cars, more emphasis should be put on the car manufacturer, car type, and car fuel type, rather than just the number of miles a car has been driven.
+
+In future research, new data sets may be generated to better estimate the effects on car valuation. Buyers and sellers  may want to know, for example, the benefit of car maintenance like upgraded sound system, new tire installation, fog lights on the car valuation. The ultimate hope of this analysis is to provide accurate tools what affects car price for both buyers and sellers while buying and selling a car in the used car market in India. 
