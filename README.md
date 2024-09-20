@@ -1,20 +1,70 @@
 <h1 align="center">Hi 👋, I'm Srila</h1>
-<h3 align="center">A passionate data scientist and analytics expert. I love what I do and do what I love.</h3>
+<h3 align="center">A Passionate Data Scientist & Analytics Professional</h3>
 
-- 🔭 I’m currently working on **rewriting ml algorithms from scratch.**
 
-- 🌱 I’m currently learning **autonomous agents.**
+<p align="center">
+  🚀 I love building products that help us do our jobs better.<br>
+  🌍 Passionate about applying Data Science for social good.<br>
+  🎓 Interested in the intersection of machine Learning and education.<br>
+  ❤️ I love what I do and do what I love.
+</p>
 
-- 👨‍💻 All of my projects are available at [https://github.com/srilamaiti/srilamaiti.github.io](https://github.com/srilamaiti/srilamaiti.github.io)
+## 🛠️ Skills and Expertise
 
-- 📫 How to reach me **srila.maiti@gmail.com**
+- **Data Science & Analytics**: Statistical Analysis, Computer Vision, Video Analytics, Research Design, Supervised, Unsupervised, Zero-shot, few-shot and semi-supervised machine learning algorithms, LLM, Gen AI, Dimensionality Reduction, Anomaly Detection, Change Point Detection, Neural Network, Experimentations, Data Mining
+- **Database Design**: Proficient in database architecture, schema design, and query tuning.
+- **Tools**: Python, SQL, R, Unix, Snowflake, Oracle, Teradata, Neo4J, MongoDB, Tableau.
+- **Cloud & Big Data**: Azure, AWS, GCP, Hadoop, Spark, Hive.
+
+---
+
+## 🧠 What I’m Currently Working On
+- Rewriting machine learning algorithms from scratch.
+- Building autonomous agents application
+- Story telling application
+- Building LLM from scratch
+
+---
+
+## 🌱 What I’m Learning
+- Autonomous Agents
+- Reinforcement Learning
+
+---
+
+## 💡 Featured Projects
+
+- **signlanguage.io : Building Inclusive Communities for All**
+
+  Our mission is to break the communication barriers for hearing and speaking impaired communities by creating an effective and accessible sign language interpretation solution. Here we are transcribing continous sign language video (ASL) to multiple languages in real time. More details can be found [here](https://www.ischool.berkeley.edu/projects/2023/signlanguageio).
+  
+
+- **Do English Language Learner Students Write Like Published Authors**
+
+  Previous Automated essay scoring (AES) experiments have shown that models that are trained from scratch performed on par or better than pre-trained transformer models, leading us to investigate whether models that rely less on pre-training and whether models that have been pre-trained on a more informal data source (Twitter) would serve as better predictors of English Language Learners’ (ELLs’) essay scores when they are graded on six different essay components. We find that when we allowed BERT and a BERT-derived model (BERTbase-cased and BERTweet-base) to learn the training data by unfreezing layers allowed for them to predict a greater range of scores and thus performed better as shown by a lower MCRMSE (mean column-wise root mean squared error) score. The models were unable to learn the more extreme scores despite using Kmeans to cluster the data into low scores, average scores, and high scores and performing k-fold cross validation with our models the experimental models. Additionally, BERTweet-base did not perform better than BERT-base-cased regardless if we trained it on the entire range or clustered data, which implies that ELLs’ essays contain a different vocabulary than Tweet vocabulary.
+Please find the paper [here](https://github.com/srilamaiti/srilamaiti.github.io/blob/main/assets/Do%20English%20Language%20Learner%20Students%20Write%20Like%20Published%20Authors.pdf).
+
+- **Estimating Impact of Mileage on Used Car Pricing in Indian Market**
+
+  As today’s automobile industry is facing the car-chip shortage across the world and the entire globe is facing the unstable economic condition caused by pandemic and inflation, the buyers are shifting their focus towards the pre-owned cars. The car experts provide some broad guidelines and data-based approaches to estimate the factors affecting the market value of the used cars. It has been traditionally thought that mileage is the main driver for used car valuation, but I seek to examine other factors that may influence the price of used cars, such as the car manufacturers, and regular or luxury cars, fuel type, region. In this study, I would like to answer the below question:-
+**How much effect the mileage has on the used car valuation in Indian car market?**
+
+  Please find research paper [here](https://github.com/srilamaiti/srilamaiti.github.io/blob/main/assets/Estimating%20Impact%20of%20Mileage%20on%20Used%20Car%20Pricing%20in%20Indian%20Market.pdf).
+  
+- **PDF Summarizer**
+
+  Here I tried to summarize a given PDF document using LangChain methods like Map-Reduce, stuff, refine. Here is the [code](https://github.com/srilamaiti/srilamaiti.github.io/blob/main/pdf_summarizer/llm_langchain_read_from_pdf_and_summarize.ipynb).
+  
+- **Recommendation System Using No-SQL**
+
+  We are building next-gen ecommerce recommendation system using No SQL. Please find the presentation [here](https://github.com/srilamaiti/srilamaiti.github.io/blob/main/assets/Next%20Gen%20e-Commerce%20with%20No-SQL.pdf).
+
+---
 
 <h3 align="left">Connect with me:</h3>
 <p align="left">
 <a href="https://linkedin.com/in/srila-maiti/" target="blank"><img align="center" src="https://raw.githubusercontent.com/rahuldkjain/github-profile-readme-generator/master/src/images/icons/Social/linked-in-alt.svg" alt="srila-maiti/" height="30" width="40" /></a>
 </p>
 
-<h3 align="left">Languages and Tools:</h3>
-<p align="left"> <a href="https://d3js.org/" target="_blank" rel="noreferrer"> <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/d3js/d3js-original.svg" alt="d3js" width="40" height="40"/> </a> <a href="https://git-scm.com/" target="_blank" rel="noreferrer"> <img src="https://www.vectorlogo.zone/logos/git-scm/git-scm-icon.svg" alt="git" width="40" height="40"/> </a> <a href="https://hive.apache.org/" target="_blank" rel="noreferrer"> <img src="https://www.vectorlogo.zone/logos/apache_hive/apache_hive-icon.svg" alt="hive" width="40" height="40"/> </a> <a href="https://www.linux.org/" target="_blank" rel="noreferrer"> <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/linux/linux-original.svg" alt="linux" width="40" height="40"/> </a> <a href="https://www.mongodb.com/" target="_blank" rel="noreferrer"> <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/mongodb/mongodb-original-wordmark.svg" alt="mongodb" width="40" height="40"/> </a> <a href="https://www.microsoft.com/en-us/sql-server" target="_blank" rel="noreferrer"> <img src="https://www.svgrepo.com/show/303229/microsoft-sql-server-logo.svg" alt="mssql" width="40" height="40"/> </a> <a href="https://www.mysql.com/" target="_blank" rel="noreferrer"> <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/mysql/mysql-original-wordmark.svg" alt="mysql" width="40" height="40"/> </a> <a href="https://opencv.org/" target="_blank" rel="noreferrer"> <img src="https://www.vectorlogo.zone/logos/opencv/opencv-icon.svg" alt="opencv" width="40" height="40"/> </a> <a href="https://www.oracle.com/" target="_blank" rel="noreferrer"> <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/oracle/oracle-original.svg" alt="oracle" width="40" height="40"/> </a> <a href="https://pandas.pydata.org/" target="_blank" rel="noreferrer"> <img src="https://raw.githubusercontent.com/devicons/devicon/2ae2a900d2f041da66e950e4d48052658d850630/icons/pandas/pandas-original.svg" alt="pandas" width="40" height="40"/> </a> <a href="https://www.postgresql.org" target="_blank" rel="noreferrer"> <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/postgresql/postgresql-original-wordmark.svg" alt="postgresql" width="40" height="40"/> </a> <a href="https://www.python.org" target="_blank" rel="noreferrer"> <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/python/python-original.svg" alt="python" width="40" height="40"/> </a> <a href="https://pytorch.org/" target="_blank" rel="noreferrer"> <img src="https://www.vectorlogo.zone/logos/pytorch/pytorch-icon.svg" alt="pytorch" width="40" height="40"/> </a> <a href="https://redis.io" target="_blank" rel="noreferrer"> <img src="https://raw.githubusercontent.com/devicons/devicon/master/icons/redis/redis-original-wordmark.svg" alt="redis" width="40" height="40"/> </a> <a href="https://scikit-learn.org/" target="_blank" rel="noreferrer"> <img src="https://upload.wikimedia.org/wikipedia/commons/0/05/Scikit_learn_logo_small.svg" alt="scikit_learn" width="40" height="40"/> </a> <a href="https://seaborn.pydata.org/" target="_blank" rel="noreferrer"> <img src="https://seaborn.pydata.org/_images/logo-mark-lightbg.svg" alt="seaborn" width="40" height="40"/> </a> <a href="https://www.sqlite.org/" target="_blank" rel="noreferrer"> <img src="https://www.vectorlogo.zone/logos/sqlite/sqlite-icon.svg" alt="sqlite" width="40" height="40"/> </a> <a href="https://www.tensorflow.org" target="_blank" rel="noreferrer"> <img src="https://www.vectorlogo.zone/logos/tensorflow/tensorflow-icon.svg" alt="tensorflow" width="40" height="40"/> </a> </p>
+---
 
-<p><img align="center" src="https://github-readme-stats.vercel.app/api/top-langs?username=srilamaiti&show_icons=true&locale=en&layout=compact" alt="srilamaiti" /></p>
