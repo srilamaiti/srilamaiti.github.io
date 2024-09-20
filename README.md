@@ -64,6 +64,10 @@ Please find the paper [here](https://github.com/srilamaiti/srilamaiti.github.io/
 
   Here I tried to summarize a given PDF document using LangChain methods like Map-Reduce, stuff, refine. Here is the [code](https://github.com/srilamaiti/srilamaiti.github.io/blob/main/pdf_summarizer/llm_langchain_read_from_pdf_and_summarize.ipynb).
 
+- **News Summarizer**
+
+  Here I tried to summarize relevent news and prepare a one-pager summary. This will help the executives to glance over what is happening in the market and if any news catches there attention, they can click on the link for further details. Here is the [code](https://github.com/srilamaiti/srilamaiti.github.io/blob/main/news_summarizer/news_summarizer.ipynb).
+
 - **Machine Learning Algorithms From Scratch**
 
   Here I am trying to rewrite the popular machine learning algorithms from scratch without calling the finctions. Here is [repo](https://github.com/srilamaiti/srilamaiti.github.io/tree/main/ml_algo_from_scratch).
