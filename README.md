@@ -4,8 +4,8 @@
 
 <p align="center">
   🚀 I love building products that help us do our jobs better.<br>
-  🌍 Passionate about applying Data Science for social good.<br>
-  🎓 Interested in the intersection of machine Learning and education.<br>
+  🌍 I am passionate about applying data science for social good.<br>
+  🎓 I am interested in the intersection of machine Learning and education.<br>
   ❤️ I love what I do and do what I love.
 </p>
 
@@ -46,14 +46,27 @@ Please find the paper [here](https://github.com/srilamaiti/srilamaiti.github.io/
 
 - **Estimating Impact of Mileage on Used Car Pricing in Indian Market**
 
-  As today’s automobile industry is facing the car-chip shortage across the world and the entire globe is facing the unstable economic condition caused by pandemic and inflation, the buyers are shifting their focus towards the pre-owned cars. The car experts provide some broad guidelines and data-based approaches to estimate the factors affecting the market value of the used cars. It has been traditionally thought that mileage is the main driver for used car valuation, but I seek to examine other factors that may influence the price of used cars, such as the car manufacturers, and regular or luxury cars, fuel type, region. In this study, I would like to answer the below question:-
-**How much effect the mileage has on the used car valuation in Indian car market?**
+  As today’s automobile industry is facing the car-chip shortage across the world and the entire globe is facing the unstable economic condition caused by pandemic and inflation, the buyers are shifting their focus towards the pre-owned cars. The car experts provide some broad guidelines and data-based approaches to estimate the factors affecting the market value of the used cars. It has been traditionally thought that mileage is the main driver for used car valuation, but I seek to examine other factors that may influence the price of used cars, such as the car manufacturers, and regular or luxury cars, fuel type, region. In this study, I would like to answer the below question:-**How much effect the mileage has on the used car valuation in Indian car market?** Please find research paper [here](https://github.com/srilamaiti/srilamaiti.github.io/blob/main/assets/Estimating%20Impact%20of%20Mileage%20on%20Used%20Car%20Pricing%20in%20Indian%20Market.pdf).
 
-  Please find research paper [here](https://github.com/srilamaiti/srilamaiti.github.io/blob/main/assets/Estimating%20Impact%20of%20Mileage%20on%20Used%20Car%20Pricing%20in%20Indian%20Market.pdf).
+- **Cancerous Tumor Detection Based On Histopathological Tissue Image**
+
+  In this project, we are trying to identify cancerous tumor identification on histopathological tissue images. We have used CNN based architecture to identify if a given image is cancerous or not. Please find the [presentation](https://github.com/srilamaiti/srilamaiti.github.io/blob/main/assets/Cancerous%20Tumor%20Detection%20Based%20On%20Histopathological%20Tissue%20Image.pdf), [EDA](https://github.com/srilamaiti/srilamaiti.github.io/blob/main/cancerous_tumor_detection_based_on_histopathological_tissue_image/w207_cancer_detection_eda.ipynb) and [model](https://github.com/srilamaiti/srilamaiti.github.io/blob/main/cancerous_tumor_detection_based_on_histopathological_tissue_image/Final_ResNet_Model.ipynb).
+
+- **Recyclable Object Classification Using Computer Vision Techniques**
+
+  In this project we are trying to identify various types of recyclable objects using computer vision techniques like edge detection, texture detection, color, key point detection features. Here are the [presentation](https://github.com/srilamaiti/srilamaiti.github.io/blob/main/recyclable_object_classification_computer_vision/recyclable_object_classification_computer_vision_presentattion.pdf) and [code](https://github.com/srilamaiti/srilamaiti.github.io/blob/main/recyclable_object_classification_computer_vision/recyclable_object_classification_computer_vision.pdf).
+  
+- **Q&A Application**
+
+  Here I created a RAG based Q&A application where the user can ask questions about a product and the application will provide answers based on product manual. I used langchain and Pinecone as vector database. Here is the [code](https://github.com/srilamaiti/srilamaiti.github.io/blob/main/rag_q_%26_a/RAG_Q_%26_A.ipynb).
   
 - **PDF Summarizer**
 
   Here I tried to summarize a given PDF document using LangChain methods like Map-Reduce, stuff, refine. Here is the [code](https://github.com/srilamaiti/srilamaiti.github.io/blob/main/pdf_summarizer/llm_langchain_read_from_pdf_and_summarize.ipynb).
+
+- **Machine Learning Algorithms From Scratch**
+
+  Here I am trying to rewrite the popular machine learning algorithms from scratch without calling the finctions. Here is [repo](https://github.com/srilamaiti/srilamaiti.github.io/tree/main/ml_algo_from_scratch).
   
 - **Recommendation System Using No-SQL**
 
