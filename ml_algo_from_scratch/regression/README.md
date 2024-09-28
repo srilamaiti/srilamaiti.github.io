@@ -1,4 +1,4 @@
-In this folder I have uploaded the regression algorithms from scratch. the algorithms implemented are:-
+In this folder, I have implemented following the regression algorithms from scratch:-
 
 1. Linear Regression
 2. Logistic Regression
