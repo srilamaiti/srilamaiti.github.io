@@ -5,4 +5,5 @@ Here I have the codes of the below algorithms from scratch:-
 3.  Rodge Regression
 4.  Lasso Regression
 5.  K Nearest Neighbor (knn) Classifier
-6.  K-Means Clustering
+6.  K Nearest Neighbor (knn) Regression
+7.  K-Means Clustering
