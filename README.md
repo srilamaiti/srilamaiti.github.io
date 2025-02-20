@@ -40,13 +40,18 @@
 
   **Technical Stack**: MoViNet, Claude, Llma, Transfer Learning, Data Engineering, Data Augmentation, Video Analytics, k-fold Cross Validation, Python
   
+- **AI Powered Product Type and Critical Component Search**
 
+  In this project, I am trying to determine the product type and it's critical components based on the provided user input. It provides a Chatbot interface and a UI, built with Gradio. Please find the code [here](https://github.com/srilamaiti/srilamaiti.github.io/blob/main/agents/multi_agent_chatbot.ipynb).
+
+  **Technical Stack**: OpenAI, Langchain, Langgraph, Gradio, Multi-Agents, Python
+  
 - **Do English Language Learner Students Write Like Published Authors**
 
   Previous Automated essay scoring (AES) experiments have shown that models that are trained from scratch performed on par or better than pre-trained transformer models, leading us to investigate whether models that rely less on pre-training and whether models that have been pre-trained on a more informal data source (Twitter) would serve as better predictors of English Language Learners’ (ELLs’) essay scores when they are graded on six different essay components. We find that when we allowed BERT and a BERT-derived model (BERTbase-cased and BERTweet-base) to learn the training data by unfreezing layers allowed for them to predict a greater range of scores and thus performed better as shown by a lower MCRMSE (mean column-wise root mean squared error) score. The models were unable to learn the more extreme scores despite using K-means to cluster the data into low scores, average scores, and high scores and performing k-fold cross-validation with our models experimental models. Additionally, BERTweet-base did not perform better than BERT-base-case regardless if we trained it on the entire range or clustered data, which implies that ELLs’ essays contain a different vocabulary than Tweet vocabulary.
 Please find the paper [here](https://github.com/srilamaiti/srilamaiti.github.io/blob/main/assets/Do%20English%20Language%20Learner%20Students%20Write%20Like%20Published%20Authors.pdf).
 
-**Technical Stack**: BERT, BERTweet, k-fold Cross Validation, Python
+  **Technical Stack**: BERT, BERTweet, k-fold Cross Validation, Python
 
 - **Estimating Impact of Mileage on Used Car Pricing in Indian Market**
 
@@ -94,7 +99,7 @@ Please find the paper [here](https://github.com/srilamaiti/srilamaiti.github.io/
 
   We are building a next-gen e-commerce recommendation system using No SQL. Please find the presentation [here](https://github.com/srilamaiti/srilamaiti.github.io/blob/main/assets/Next%20Gen%20e-Commerce%20with%20No-SQL.pdf).
 
-  **Technical Stack**: Python
+  **Technical Stack**: Python, Neo4j
 
 ---
 
