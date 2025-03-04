@@ -45,17 +45,23 @@
   In this project, I am trying to determine the product type and it's critical components based on the provided user input. It provides a Chatbot interface and a UI, built with Gradio. Please find the code [here](https://github.com/srilamaiti/srilamaiti.github.io/blob/main/agents/multi_agent_chatbot.ipynb).
 
   **Technical Stack**: OpenAI, Langchain, Langgraph, Gradio, Multi-Agents, Python
+
+- **AI Powered Customer Service Center Call Analyzer**
+
+  In this project, I am trying to determine the audio call in a customer service center. Based on the call, I do sentiment analysis, the reason of the customer call and the action plans to mitigate. Please find the code [here](https://github.com/srilamaiti/srilamaiti.github.io/blob/main/customer_service_center_audio_call_analysis/customer_service_center_audio_call_analysis.ipynb).
+
+  **Technical Stack**: OpenAI, Speechtotext, Python
   
 - **Do English Language Learner Students Write Like Published Authors**
 
-  Previous Automated essay scoring (AES) experiments have shown that models that are trained from scratch performed on par or better than pre-trained transformer models, leading us to investigate whether models that rely less on pre-training and whether models that have been pre-trained on a more informal data source (Twitter) would serve as better predictors of English Language Learners’ (ELLs’) essay scores when they are graded on six different essay components. We find that when we allowed BERT and a BERT-derived model (BERTbase-cased and BERTweet-base) to learn the training data by unfreezing layers allowed for them to predict a greater range of scores and thus performed better as shown by a lower MCRMSE (mean column-wise root mean squared error) score. The models were unable to learn the more extreme scores despite using K-means to cluster the data into low scores, average scores, and high scores and performing k-fold cross-validation with our models experimental models. Additionally, BERTweet-base did not perform better than BERT-base-case regardless if we trained it on the entire range or clustered data, which implies that ELLs’ essays contain a different vocabulary than Tweet vocabulary.
+  Previous Automated essay scoring (AES) experiments have shown that models that are trained from scratch performed on par or better than pre-trained transformer models, leading us to investigate whether models that rely less on pre-training and whether models that have been pre-trained on a more informal data source (Twitter) would serve as better predictors of English Language Learners’ (ELLs’) essay scores when they are graded on six different essay components. We find that when we allowed BERT and a BERT-derived model (BERTbase-cased and BERTweet-base) to learn the training data by unfreezing layers, it allowed for them to predict a greater range of scores and thus performed better as shown by a lower MCRMSE (mean column-wise root mean squared error) score. The models could not learn the more extreme scores despite using K-means to cluster the data into low scores, average scores, and high scores and performing k-fold cross-validation with our experimental models. Additionally, BERTweet-base did not perform better than BERT-base-case regardless if we trained it on the entire range or clustered data, which implies that ELLs’ essays contain a different vocabulary than Tweet vocabulary.
 Please find the paper [here](https://github.com/srilamaiti/srilamaiti.github.io/blob/main/assets/Do%20English%20Language%20Learner%20Students%20Write%20Like%20Published%20Authors.pdf).
 
   **Technical Stack**: BERT, BERTweet, k-fold Cross Validation, Python
 
 - **Estimating Impact of Mileage on Used Car Pricing in Indian Market**
 
-  As today’s automobile industry is facing the car-chip shortage worldwide and the entire globe is facing unstable economic conditions caused by the pandemic and inflation, buyers are shifting their focus towards pre-owned cars. The car experts provide some broad guidelines and data-based approaches to estimate the factors affecting the market value of used cars. It has been traditionally thought that mileage is the main driver for used car valuation, but I seek to examine other factors that may influence the price of used cars, such as the car manufacturers, regular or luxury cars, fuel type, and region. In this study, I would like to answer the below question:-**How much effect the mileage has on the used car valuation in the Indian car market?** Please find the research paper [here](https://github.com/srilamaiti/srilamaiti.github.io/blob/main/assets/Estimating%20Impact%20of%20Mileage%20on%20Used%20Car%20Pricing%20in%20Indian%20Market.pdf).
+  As today’s automobile industry is facing the car-chip shortage worldwide and the entire globe is facing unstable economic conditions caused by the pandemic and inflation, buyers are shifting their focus towards pre-owned cars. The car experts provide some broad guidelines and data-based approaches to estimate the factors affecting used car market value. It has been traditionally thought that mileage is the main driver for used car valuation, I seek to examine other factors that may influence the price of used cars, such as the car manufacturers, regular or luxury cars, fuel type, and region. In this study, I would like to answer the below question: ** How much effect the mileage has on the used car valuation in the Indian car market?** Please find the research paper [here](https://github.com/srilamaiti/srilamaiti.github.io/blob/main/assets/Estimating%20Impact%20of%20Mileage%20on%20Used%20Car%20Pricing%20in%20Indian%20Market.pdf).
 
   **Technical Stack**: R
 
@@ -97,7 +103,7 @@ Please find the paper [here](https://github.com/srilamaiti/srilamaiti.github.io/
   
 - **Recommendation System Using No-SQL**
 
-  We are building a next-gen e-commerce recommendation system using No SQL. Please find the presentation [here](https://github.com/srilamaiti/srilamaiti.github.io/blob/main/assets/Next%20Gen%20e-Commerce%20with%20No-SQL.pdf).
+  We are building a next-gen e-commerce recommendation system using NoSQL. Please find the presentation [here](https://github.com/srilamaiti/srilamaiti.github.io/blob/main/assets/Next%20Gen%20e-Commerce%20with%20No-SQL.pdf).
 
   **Technical Stack**: Python, Neo4j
 
