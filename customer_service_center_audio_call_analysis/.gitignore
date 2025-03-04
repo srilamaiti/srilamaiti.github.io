@@ -1,0 +1,1 @@
+In this project, I analyze the customer service center call to determine the sentiment, reason of the customer call and action plans to mitigate. I used audio data to start with and I translated to text by chunking and then used OpenAI api calls to determine sentiment, reason of the call and action plans.
