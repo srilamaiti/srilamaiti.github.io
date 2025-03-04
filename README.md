@@ -48,9 +48,9 @@
 
 - **AI Powered Customer Service Center Call Analyzer**
 
-  In this project, I am trying to determine the audio call in a customer service center. Based on the call, I do sentiment analysis, the reason of the customer call and the action plans to mitigate. Please find the code [here](https://github.com/srilamaiti/srilamaiti.github.io/blob/main/customer_service_center_audio_call_analysis/customer_service_center_audio_call_analysis.ipynb).
+  In this project, I am trying to analyze the audio call data in a customer service center. Based on the call, I do sentiment analysis, the reason of the customer call and the action plans to mitigate. Please find the code [here](https://github.com/srilamaiti/srilamaiti.github.io/blob/main/customer_service_center_audio_call_analysis/customer_service_center_audio_call_analysis.ipynb).
 
-  **Technical Stack**: OpenAI, Speechtotext, Python
+  **Technical Stack**: OpenAI, speech_recognition, Python, Gradio
   
 - **Do English Language Learner Students Write Like Published Authors**
 
