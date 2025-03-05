@@ -1,0 +1,5 @@
+
+Plant Leadership Team:
+- Plant Manager: John Doe (john.doe@plant.com)
+- Safety Officer: Jane Smith (jane.smith@plant.com)
+- Operations Lead: Mark Lee (mark.lee@plant.com)

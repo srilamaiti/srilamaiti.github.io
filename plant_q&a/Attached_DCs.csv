@@ -1,0 +1,6 @@
+Plant_Number,Plant_Address,Distribution_Center,DC_Location,Avg_Door_to_Door_Transport_Time_Days
+PL-123,"Suzhou, China",DC_NewYork,"New York, USA",26.96
+PL-123,"Suzhou, China",DC_Dallas,"Dallas, USA",22.11
+PL-123,"Suzhou, China",DC_SanFrancisco,"San Francisco, USA",21.89
+PL-123,"Suzhou, China",DC_Chicago,"Chicago, USA",15.8
+PL-123,"Suzhou, China",DC_Atlanta,"Atlanta, USA",26.11
