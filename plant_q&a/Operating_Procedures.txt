@@ -1,0 +1,31 @@
+**Plant Operating Procedures Document**
+
+**1. Introduction**
+This document details the standard operating procedures (SOPs) at Plant PL-123, Suzhou, China, to ensure efficient and safe operations across all departments.
+
+**2. General Plant-Level Operating Procedures**
+- Employees must clock in and out using the biometric system.
+- All work areas must be kept clean and free of obstructions.
+- Shift handovers must include detailed logs of any ongoing issues or tasks.
+- Regular equipment maintenance schedules must be followed.
+- Any deviations from SOPs must be reported and documented.
+
+**3. Production Line Operating Procedures**
+- Raw materials must be inspected upon arrival before processing.
+- Machines must be calibrated at the start of each shift.
+- Quality control checks must be performed at regular intervals.
+- Any defective products must be recorded and removed from the production line.
+- Operators must wear designated PPE at all times.
+
+**4. Machine-Level Operating Procedures**
+- Only authorized personnel may operate machinery.
+- Machines must undergo daily inspections before use.
+- Any unusual noise, vibration, or error must be reported immediately.
+- Proper shutdown procedures must be followed at the end of each shift.
+- Maintenance logs must be updated after every service.
+
+**5. Review and Compliance**
+- Internal audits on operating procedures will be conducted annually.
+- Employees must undergo refresher training on SOPs every two years.
+- Any process improvements should be proposed to the Operations Manager.
+- Next review date: **September 2025**.

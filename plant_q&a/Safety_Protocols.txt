@@ -1,0 +1,33 @@
+**Plant Safety Protocol Document**
+
+**1. Introduction**
+Safety is a top priority at Plant PL-123, Suzhou, China. This document outlines safety protocols at the plant, production line, and machine levels to ensure a secure working environment for all employees and contractors.
+
+**2. Plant-Level Safety Protocols**
+- Emergency exits must be clearly marked and kept unobstructed at all times.
+- Fire extinguishers and first aid kits must be available at designated locations.
+- All employees must complete annual safety training.
+- Personal Protective Equipment (PPE) such as helmets, gloves, and safety shoes must be worn in hazardous areas.
+- Regular plant-wide safety drills will be conducted every quarter.
+- Visitors must be escorted and briefed on safety guidelines before entry.
+- Any safety incidents must be reported immediately to the Safety Officer.
+
+**3. Line-Level Safety Protocols**
+- Production lines must have clearly designated walkways and restricted access zones.
+- Machinery should only be operated by authorized and trained personnel.
+- Safety barriers and guards must be maintained around high-risk areas.
+- Emergency stop buttons must be accessible and tested regularly.
+- Line supervisors must conduct daily safety inspections before operation begins.
+
+**4. Machine-Level Safety Protocols**
+- Pre-operation safety checks must be performed before starting any machine.
+- Operators must follow standard operating procedures (SOPs) at all times.
+- Lockout/Tagout (LOTO) procedures must be strictly followed for maintenance.
+- Any faulty or malfunctioning machines must be reported immediately and taken out of service.
+- Sensors and emergency shutoff systems must be tested monthly.
+
+**5. Review and Compliance**
+- Safety compliance audits will be conducted bi-annually.
+- Any safety protocol violations will result in corrective actions.
+- Employees are encouraged to provide feedback on improving safety measures.
+- Next review date: **September 2025**.
