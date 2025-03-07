@@ -1,5 +1,8 @@
-
-Plant Lease Details:
-- Lease agreement valid from 2020 to 2035.
-- Rent payments to be made annually.
-- Renewal terms to be discussed in 2034.
+Lease agreement is valid from 2020 to 2035.
+Rent payments to be made annually.
+Renewal terms to be discussed in December 2034.
+Current rent yearly is 75000 USD.
+Address of the plant: No. 200 Suhong Road, Export Processing Zone, Suzhou Industrial Park, Suzhou, Jiangsu, China. 
+Nearest airport to the plant is Sunan Shuofang International Airport (WUX).
+Nearest seaport to the plant is Port of Suzhou, which is an inland river port on the lower reaches of the Yangtze River. 
+The property is maintained by Suzhou Plant Manager LLC, China.
