@@ -20,7 +20,7 @@
 
 ## 🧠 What I’m Currently Working On
 - Rewriting machine learning algorithms from scratch.
-- Building autonomous agents application
+- Building the autonomous agents application
 - Storytelling application
 - Building LLM from scratch
 
@@ -51,6 +51,12 @@
   In this project, I am trying to analyze the audio call data in a customer service center. Based on the call, I do sentiment analysis, the reason of the customer call and the action plans to mitigate. Please find the code [here](https://github.com/srilamaiti/srilamaiti.github.io/blob/main/customer_service_center_audio_call_analysis/customer_service_center_audio_call_analysis.ipynb).
 
   **Technical Stack**: OpenAI, speech_recognition, Python, Gradio
+
+- **AI Powered Earning Call Summarizer**
+
+  In this project, I am trying to analyze the earning call data and summarize the details. Please find the code [here](https://github.com/srilamaiti/srilamaiti.github.io/blob/main/earning_call_summarizer/earning_call_summarizer.ipynb).
+
+  **Technical Stack**: OpenAI, Python, Gradio
   
 - **Do English Language Learner Students Write Like Published Authors**
 
