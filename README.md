@@ -56,7 +56,7 @@
 
   In this project, I am trying to analyze the earning call data and summarize the details. Please find the code [here](https://github.com/srilamaiti/srilamaiti.github.io/blob/main/earning_call_summarizer/earning_call_summarizer.ipynb).
 
-  **Technical Stack**: OpenAI, Python, Gradio
+  **Technical Stack**: OpenAI, Python
   
 - **Do English Language Learner Students Write Like Published Authors**
 
