@@ -1,0 +1,14 @@
+command:
+  - streamlit
+  - run
+  - app.py
+
+env:
+  - name: NEWS_TABLE
+    value: daily_ai_news_tracker
+  - name: DATABRICKS_WAREHOUSE_ID
+    value: 76f5a569205afced
+
+# Note: user OAuth scopes (e.g. `sql`) are configured on the app itself, not in this
+# manifest. Set via `databricks apps update <name> --json '{"user_api_scopes":["sql"]}'`
+# or via the Databricks UI: App settings -> User authorization -> Add scope.
