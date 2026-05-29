@@ -39,6 +39,12 @@
   Our mission is to break the communication barriers for hearing and speaking-impaired communities by creating an effective and accessible sign language interpretation solution. Here we are transcribing continuous sign language video (ASL) to multiple languages in real-time. More details can be found [here](https://www.ischool.berkeley.edu/projects/2023/signlanguageio).
 
   **Technical Stack**: MoViNet, Claude, Llma, Transfer Learning, Data Engineering, Data Augmentation, Video Analytics, k-fold Cross Validation, Python
+
+- **AI Powered Daily AI News Tracker**
+
+  In this project, I am collect daily AI / science / stem news and display in an app, built in Stremlit in Databricks. Please find the code [here](https://github.com/srilamaiti/srilamaiti.github.io/tree/main/daily_ai_news_tracker).
+
+  **Technical Stack**: Databricks, Streamlit, Multi-Agents, Cursor, Claude, Python
   
 - **AI Powered Product Type and Critical Component Search**
 
