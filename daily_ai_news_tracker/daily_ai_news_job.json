@@ -1,0 +1,28 @@
+{
+  "name": "daily_ai_news_refresh",
+  "tasks": [
+    {
+      "task_key": "refresh",
+      "notebook_task": {
+        "notebook_path": "/Users/srila/daily_ai_news_refresh",
+        "base_parameters": {
+          "lookback_days": "1",
+          "max_stories": "10"
+        }
+      },
+      "existing_cluster_id": "0214-190352-w10bzt00",
+      "timeout_seconds": 1200,
+      "max_retries": 1,
+      "retry_on_timeout": true
+    }
+  ],
+  "schedule": {
+    "quartz_cron_expression": "0 0 8 * * ?",
+    "timezone_id": "America/New_York",
+    "pause_status": "UNPAUSED"
+  },
+  "email_notifications": {
+    "on_failure": ["app_notify@gmail.com"]
+  },
+  "max_concurrent_runs": 1
+}
